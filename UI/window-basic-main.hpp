@@ -731,6 +731,8 @@ public slots:
 	void PauseRecording();
 	void UnpauseRecording();
 
+	void CloseProjectors(int monitor);
+
 private slots:
 
 	void on_actionMainUndo_triggered();

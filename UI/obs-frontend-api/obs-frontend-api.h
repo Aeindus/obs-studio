@@ -103,6 +103,7 @@ EXPORT void *obs_frontend_get_main_window_handle(void);
 EXPORT void *obs_frontend_get_system_tray(void);
 
 EXPORT char **obs_frontend_get_scene_names(void);
+EXPORT const char *obs_frontend_get_current_scene_name(void);
 EXPORT void obs_frontend_get_scenes(struct obs_frontend_source_list *sources);
 EXPORT obs_source_t *obs_frontend_get_current_scene(void);
 EXPORT void obs_frontend_set_current_scene(obs_source_t *scene);
@@ -196,6 +197,7 @@ EXPORT void obs_frontend_replay_buffer_save(void);
 EXPORT void obs_frontend_replay_buffer_stop(void);
 EXPORT bool obs_frontend_replay_buffer_active(void);
 
+EXPORT void obs_frontend_close_projectors(int monitor);
 EXPORT void obs_frontend_open_projector(const char *type, int monitor,
 					const char *geometry, const char *name);
 EXPORT void obs_frontend_save(void);
