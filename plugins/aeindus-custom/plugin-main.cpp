@@ -11,6 +11,7 @@
 #include "util.hpp"
 
 #define STOP MessageBoxA(NULL, "Test", "Test", MB_OK)
+#define EXTERNAL_MONITOR 1
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
@@ -28,11 +29,16 @@ void custom_callback(obs_frontend_event event, void* private_data) {
 			// Pause the other app projector
 			ToggleJWLibraryProjector(PROJ_OPERATION::MINIMIZE);
 			
+			// Close and restart projector
+			// This is also what OBSBasic::OpenProjector() with CloseExistingProjectors
+			// setting enabled do.
+			obs_frontend_close_projectors(EXTERNAL_MONITOR);
+			
 			// Enable projector here only if it's not open yet
-			obs_frontend_open_projector("Scene", 1, "", current_scene_name.c_str());
+			obs_frontend_open_projector("Scene", EXTERNAL_MONITOR, "", current_scene_name.c_str());
 		} else {
 			// Disable obs projector
-			obs_frontend_close_projectors(1);
+			obs_frontend_close_projectors(EXTERNAL_MONITOR);
 		}
 
 		// Activate the other app projector
