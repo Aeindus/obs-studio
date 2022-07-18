@@ -17,7 +17,9 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 void custom_callback(obs_frontend_event event, void* private_data) {
 	if (event== OBS_FRONTEND_EVENT_SCENE_CHANGED) {
-		std::string current_scene_name = obs_frontend_get_current_scene_name();
+		obs_source_t *scene = obs_frontend_get_current_scene();
+		std::string current_scene_name = obs_name_from_scene(scene);
+		obs_source_release(scene);
 
 		blog(LOG_INFO, "SCENE_CHANGED");
 		blog(LOG_INFO, "Current scene name: %s",current_scene_name.c_str());
@@ -26,16 +28,16 @@ void custom_callback(obs_frontend_event event, void* private_data) {
 			// Pause the other app projector
 			ToggleJWLibraryProjector(PROJ_OPERATION::MINIMIZE);
 			
-			// Enable projector here
+			// Enable projector here only if it's not open yet
 			obs_frontend_open_projector("Scene", 1, "", current_scene_name.c_str());
 		} else {
 			// Disable obs projector
 			obs_frontend_close_projectors(1);
+		}
 
-			// Activate the other app projector
-			if (current_scene_name.find("JWScena") != std::string::npos) {
-				ToggleJWLibraryProjector(PROJ_OPERATION::MAXIMIZE);
-			}
+		// Activate the other app projector
+		if (current_scene_name.find("JWScena") != std::string::npos) {
+			ToggleJWLibraryProjector(PROJ_OPERATION::MAXIMIZE);
 		}
 
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED) {
