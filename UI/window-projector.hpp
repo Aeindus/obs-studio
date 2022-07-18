@@ -66,6 +66,8 @@ public:
 	void RenameProjector(QString oldName, QString newName);
 	void SetHideCursor();
 
+	void CloseProjector();
+
 	bool IsAlwaysOnTop() const;
 	bool IsAlwaysOnTopOverridden() const;
 	void SetIsAlwaysOnTop(bool isAlwaysOnTop, bool isOverridden);
