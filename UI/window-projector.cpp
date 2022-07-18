@@ -115,6 +115,8 @@ OBSProjector::~OBSProjector()
 	if (type == ProjectorType::Multiview)
 		multiviewProjectors.removeAll(this);
 
+	allProjectors.removeAll(this);
+
 	App()->DecrementSleepInhibition();
 
 	screen = nullptr;
@@ -303,8 +305,6 @@ void OBSProjector::CloseProjector()
 {
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	main->DeleteProjector(this);
-
-	allProjectors.removeAll(this);
 }
 
 void OBSProjector::UpdateMultiview()
