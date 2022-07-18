@@ -10,6 +10,12 @@ on:
   pull_request:
     paths-ignore: ['**.md']
     branches: [master]
+  workflow_dispatch:
+    paths-ignore: ['**.md']
+    branches:
+      - master
+      - 'release/**'
+    tags: ['*']
 
 env:
   CACHE_REVISION: '006'
