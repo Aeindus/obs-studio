@@ -63,7 +63,6 @@ if(OS_WINDOWS AND MSVC)
     /Brepro
     /MP
     /W3
-    /WX
     /wd4127
     /wd4201
     /wd4456
