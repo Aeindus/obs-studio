@@ -86,6 +86,14 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 		}
 	}
 
+	const char *obs_frontend_get_current_scene_name(void) override
+	{
+		obs_source_t *scene = obs_frontend_get_current_scene();
+		const char *result = obs_name_from_scene(scene);
+		obs_source_release(scene);
+
+		return result;
+	}
 	obs_source_t *obs_frontend_get_current_scene(void) override
 	{
 		if (main->IsPreviewProgramMode()) {
@@ -434,6 +442,13 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 		QMetaObject::invokeMethod(main, "OpenSavedProjector",
 					  WaitConnection(),
 					  Q_ARG(SavedProjectorInfo *, &proj));
+	}
+
+	void obs_frontend_close_projectors(int monitor) override
+	{
+		QMetaObject::invokeMethod(main, "CloseProjectors",
+					  WaitConnection(),
+					  Q_ARG(int, monitor));
 	}
 
 	void obs_frontend_save(void) override { main->SaveProject(); }

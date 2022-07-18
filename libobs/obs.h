@@ -309,6 +309,11 @@ struct obs_cmdline_args {
 /* OBS context */
 
 /**
+* Returns name of the provided scene.
+*/
+EXPORT const char *obs_name_from_scene(obs_source_t *scene);
+
+/**
  * Find a core libobs data file
  * @param path name of the base file
  * @return A string containing the full path to the file.
