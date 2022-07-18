@@ -100,12 +100,6 @@ void obs_frontend_get_scenes(struct obs_frontend_source_list *sources)
 		c->obs_frontend_get_scenes(sources);
 }
 
-const char *obs_frontend_get_current_scene_name(void)
-{
-	return !!callbacks_valid() ? c->obs_frontend_get_current_scene_name()
-				   : nullptr;
-}
-
 obs_source_t *obs_frontend_get_current_scene(void)
 {
 	return !!callbacks_valid() ? c->obs_frontend_get_current_scene()

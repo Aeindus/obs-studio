@@ -118,6 +118,8 @@ OBSProjector::~OBSProjector()
 		multiviewProjectors.removeAll(this);
 	}
 
+	allProjectors.removeAll(this);
+
 	App()->DecrementSleepInhibition();
 
 	screen = nullptr;
