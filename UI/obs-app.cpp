@@ -101,7 +101,7 @@ bool opt_always_on_top = false;
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 bool opt_disable_high_dpi_scaling = false;
 #endif
-bool opt_disable_updater = false;
+bool opt_disable_updater = true;
 bool opt_disable_missing_files_check = false;
 string opt_starting_collection;
 string opt_starting_profile;
