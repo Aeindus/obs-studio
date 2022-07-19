@@ -4,9 +4,6 @@ on:
   push:
     paths-ignore:
       - "cmake/**"
-  pull_request:
-    paths:
-      - "docs/sphinx/**"
 
 jobs:
   docs:
