@@ -13,8 +13,13 @@ Documentatie
 ------------------
 
 Cuvinte cheie cautate in numele scenei:
- - *JWScena*  Va cauta proiectorul aplicatiei Jw Library si il va afisa pe al doilea monitor (indiferent de ce era prezentat inainte)
- - *PScena*   Va afisa proiectorul creat de OBS (indiferent de ce era prezentat inainte).
+ - *JWScena*	Va cauta proiectorul aplicatiei JW Library si il va afisa pe al doilea monitor (indiferent de ce era prezentat inainte)
+ - *PScena*	Va afisa proiectorul creat de OBS (indiferent de ce era prezentat inainte).
+ - *VScena*	Camera virtuala va fi dezactivata. Comportamentul normal este ca ea sa fie activa.
+ 
+Cand nu este folosita, camera virtuala afiseaza o imagine standard. Aceasta a fost inlocuita cu textul anului.
+Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow\\data\\placeholder.png** si recompilati.
+
 
 What is OBS Studio?
 -------------------
