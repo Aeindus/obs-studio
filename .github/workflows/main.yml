@@ -2,16 +2,16 @@ name: 'BUILD'
 
 on:
   push:
-    paths-ignore: ['**.md']
+    paths-ignore: ['**.md','**.rst']
     branches:
       - master
       - 'release/**'
     tags: ['*']
   pull_request:
-    paths-ignore: ['**.md']
+    paths-ignore: ['**.md','**.rst']
     branches: [master]
   workflow_dispatch:
-    paths-ignore: ['**.md']
+    paths-ignore: ['**.md','**.rst']
     branches:
       - master
       - 'release/**'
