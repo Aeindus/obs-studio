@@ -4,12 +4,6 @@ on:
   push:
     paths-ignore:
       - "cmake/**"
-    branches: ['*']
-    tags: ['*']
-  pull_request:
-    paths:
-      - "docs/sphinx/**"
-  workflow_dispatch:
 
 jobs:
   docs:
