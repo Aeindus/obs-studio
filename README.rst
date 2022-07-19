@@ -3,10 +3,18 @@ OBS Studio <https://obsproject.com>
 
 .. image:: https://github.com/Aeindus/obs-studio/actions/workflows/main.yml/badge.svg?branch=master&event=push
    :alt: OBS Studio Build Status - GitHub Actions
-   :target: https://github.com/obsproject/obs-studio/actions/workflows/main.yml?query=event%3Apush+branch%3Amaster
+   :target: https://github.com/Aeindus/obs-studio/actions/workflows/main.yml?query=event%3Apush+branch%3Amaster
 
 Customized version of obs. Master branch contains a number of improvments over "stable" release branch. For this reason all builds are made 
 from the master branch.
+Automatic updates disabled (do not update manually).
+
+Documentatie
+------------------
+
+Cuvinte cheie cautate in numele scenei:
+ - *JWScena*  Va cauta proiectorul aplicatiei Jw Library si il va afisa pe al doilea monitor (indiferent de ce era prezentat inainte)
+ - *PScena*   Va afisa proiectorul creat de OBS (indiferent de ce era prezentat inainte).
 
 What is OBS Studio?
 -------------------
