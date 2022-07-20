@@ -16,6 +16,8 @@
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+bool first_run=true;
+
 void custom_callback(obs_frontend_event event, void* private_data) {
 	if (event== OBS_FRONTEND_EVENT_SCENE_CHANGED) {
 		obs_source_t *scene = obs_frontend_get_current_scene();
@@ -25,14 +27,26 @@ void custom_callback(obs_frontend_event event, void* private_data) {
 		blog(LOG_INFO, "SCENE_CHANGED");
 		blog(LOG_INFO, "Current scene name: %s",current_scene_name.c_str());
 
+		size_t start_of_scene=current_scene_name.find("Scena");
+		if (start_of_scene == std::string::npos) {
+			start_of_scene=current_scene_name.find("Scene");
+		}
+
+		if (start_of_scene == std::string::npos) {
+			blog(LOG_ERROR, "Scene identifier could not be found in scene name");
+			return;
+		}
+
+		std::string flags=current_scene_name.substr(0,start_of_scene);
+
 		// Activate the other app projector
 		// The default behaviour is to leave this projector on
 		// even when this scene is switched out.
-		if (current_scene_name.find("JWScena") != std::string::npos) {
+		if (flags.find("JW") != std::string::npos) {
 			ToggleJWLibraryProjector(PROJ_OPERATION::MAXIMIZE);
 		}
 
-		if (current_scene_name.find("PScena")!= std::string::npos) {
+		if (flags.find("P") != std::string::npos) {
 			// Pause the other app projector
 			ToggleJWLibraryProjector(PROJ_OPERATION::MINIMIZE);
 			
@@ -48,12 +62,16 @@ void custom_callback(obs_frontend_event event, void* private_data) {
 			obs_frontend_close_projectors(EXTERNAL_MONITOR);
 		}
 
-		if (current_scene_name.find("VScena") != std::string::npos) {
-			obs_frontend_stop_virtualcam();
-		} else {
-			if(!obs_frontend_virtualcam_active())
-				obs_frontend_start_virtualcam();
+		if (!first_run) {
+			if (flags.find("V") != std::string::npos) {
+				obs_frontend_stop_virtualcam();
+			} else {
+				if(!obs_frontend_virtualcam_active())
+					obs_frontend_start_virtualcam();
+			}
 		}
+
+		first_run=false;
 
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED) {
 		blog(LOG_INFO, "LIST_CHANGED");
@@ -66,7 +84,7 @@ bool obs_module_load(void) {
 
 	// Register events
 	obs_frontend_add_event_callback(custom_callback, nullptr);
-
+	
 	return true;
 }
 

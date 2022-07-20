@@ -69,14 +69,16 @@ void ToggleJWLibraryProjector(PROJ_OPERATION operation) {
 		WINDOW_DATA descriptor = GetWindowDescription(nextWindow);
 
 		if (CompareWindowData(descriptor)) {
-			blog(LOG_INFO,"Restored app %s", DescriptionToString(descriptor).c_str());
-
 			if (operation == PROJ_OPERATION::MAXIMIZE) {
 				WINDOWPLACEMENT window;
 				window.length = sizeof(WINDOWPLACEMENT);
 				GetWindowPlacement(descriptor.hwnd, &window);
 
+				blog(LOG_INFO,"Maximized app %s", DescriptionToString(descriptor).c_str());
+
 				// Only maximize if not already maximized
+				// The window seems to never enter normally the maximize state but remains
+				// to normal even in fullscreen.
 				if (window.showCmd != SW_NORMAL) {
 					ShowWindow(descriptor.hwnd, SW_NORMAL);
 				}
@@ -85,6 +87,8 @@ void ToggleJWLibraryProjector(PROJ_OPERATION operation) {
 				// GetWindowPlacement says it is maximized. Fix by bringing to top.
 				BringWindowToTop(descriptor.hwnd);
 			} else if (operation == PROJ_OPERATION::MINIMIZE) {
+				blog(LOG_INFO,"Minimized app %s", DescriptionToString(descriptor).c_str());
+
 				ShowWindow(descriptor.hwnd, SW_MINIMIZE);
 			}
 		}
