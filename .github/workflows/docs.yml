@@ -2,8 +2,7 @@ name: Generate Documentation
 
 on:
   push:
-    paths-ignore:
-      - ["cmake/**",'**.rst']
+    paths-ignore: ["cmake/**","**.rst"]
 
 jobs:
   docs:
