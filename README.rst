@@ -20,6 +20,30 @@ Cuvinte cheie cautate in numele scenei:
 Cand nu este folosita, camera virtuala afiseaza o imagine standard. Aceasta a fost inlocuita cu textul anului.
 Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow\\data\\placeholder.png** si recompilati.
 
+.. table:: Obs scenes table
+    :widths: auto
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+| NUME SCENA                     | VIDEO                                      | AUDIO                                                    | DETALII                                                             |
++================================+============================================+==========================================================+=====================================================================+
+| JWScena Podium                 | - Camera                                   | - Microfoane sala                                        | - Standard. Folosit in timpul intrunirii.                           |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+| JWScena 2 Videoclip pe Zoom    | - Captura Ecran Secundar (Display Capture) | - Microfoane sala                                        | - Folosit pentru prezentarea unui video din JW.                     |
+|                                |                                            | - Audio PC fara Zoom (application audio output capture)  | - Se poate raspunde pe Zoom si din sala.                            |
+|                                |                                            |                                                          | - Audio generat de Windows este transmis catre Zoom.                |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+| PScena 3 Prezentari Imagini    | - Image Slideshow (Image Slideshow)        | - Microfoane sala                                        | - Folosit pentru prezentarea de imagini dintr-un folder predefinit. |
+|                                | - Media Source (Media Source)              |                                                          | - Se poate raspunde pe Zoom si din sala.                            |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+| PScena 4 Prezentare pdf/media  | - Browser (Browser)                        | - Microfoane sala                                        | - Folosit pentru prezentarea multimedia (pdf/surse video).          |
+|                                |                                            | - Audio PC fara Zoom                                     | - Se poate raspunde pe Zoom si din sala.                            |
+|                                |                                            |                                                          | - Audio generat de Windows este transmis catre Zoom.                |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+| VPScena 5 Cuvantare de pe Zoom | - Captura fereastra Zoom (Window Capture)  |                                                          | - Folosit pentru o cuvantare/demonstratie de pe Zoom.               |
+|                                |                                            |                                                          | - Video-ul catre Zoom e inchis.                                     |
+|                                |                                            |                                                          | - Audio-ul catre Zoom e inchis.                                     |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
+|                                |                                            |                                                          |                                                                     |
++--------------------------------+--------------------------------------------+----------------------------------------------------------+---------------------------------------------------------------------+
 
 What is OBS Studio?
 -------------------
