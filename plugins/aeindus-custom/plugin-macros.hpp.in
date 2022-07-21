@@ -1,7 +1,7 @@
 #ifndef PLUGINNAME_H
 #define PLUGINNAME_H
 
-#define PLUGIN_NAME "@CMAKE_PROJECT_NAME@"
+#define PLUGIN_NAME "@PROJECT_NAME@"
 
 #define blog(level, msg, ...) blog(level, "[" PLUGIN_NAME "] " msg, ##__VA_ARGS__)
 
