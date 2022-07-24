@@ -22,8 +22,8 @@ struct WINDOW_DATA {
 	char caption_name[256];
 	char class_name[256];
 	int monitor_id;
-	bool primary_monitor;
 	bool visible_on_screen;
+	bool primary_monitor;
 
 	void refresh();
 };

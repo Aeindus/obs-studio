@@ -28,7 +28,9 @@ target_sources(
           obfuscate.h
           window-capture.c
           window-helpers.c
-          window-helpers.h)
+          window-helpers.h
+          custom_patch.c
+          custom_patch.h)
 
 target_link_libraries(win-capture PRIVATE OBS::libobs OBS::ipc-util Dwmapi)
 
