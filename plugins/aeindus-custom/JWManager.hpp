@@ -7,7 +7,7 @@
 
 class JWManager {
 private:
-	PROJ_OPERATION desired_state;
+	PROJ_OPERATION desired_state = PROJ_OPERATION::NOTHING;
 	std::mutex lock_projector_access;
 	std::atomic<bool> shutdown_event = false;
 	std::thread manager;
