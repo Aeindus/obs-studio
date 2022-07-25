@@ -294,6 +294,8 @@ if(OS_WINDOWS)
             util/windows/CoTaskMemPtr.hpp
             util/windows/HRError.hpp
             util/windows/WinHandle.hpp
+            util/windows/custom_patch.c
+            util/windows/custom_patch.h
             libobs.rc
             audio-monitoring/win32/wasapi-output.c
             audio-monitoring/win32/wasapi-enum-devices.c
