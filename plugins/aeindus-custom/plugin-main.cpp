@@ -17,6 +17,7 @@
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+bool first_run = true;
 JWManager jw_manger;
 ZoomManager zoom_manager;
 
@@ -62,13 +63,16 @@ void customCallback(obs_frontend_event event, void* private_data) {
 			obs_frontend_close_projectors(EXTERNAL_MONITOR);
 		}
 
-		if (flags.find("V") != std::string::npos) {
-			obs_frontend_stop_virtualcam();
-		} else {
-			if (!obs_frontend_virtualcam_active())
-				obs_frontend_start_virtualcam();
+		if (!first_run) {
+			if (flags.find("V") != std::string::npos) {
+				obs_frontend_stop_virtualcam();
+			} else {
+				if (!obs_frontend_virtualcam_active())
+					obs_frontend_start_virtualcam();
+			}
 		}
-
+		
+		first_run = false;
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED) {
 		blog(LOG_INFO, "LIST_CHANGED");
 	}
