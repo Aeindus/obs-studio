@@ -443,12 +443,10 @@ static obs_properties_t *wc_properties(void *data)
 	p = obs_properties_add_list(ppts, "window", TEXT_WINDOW,
 				    OBS_COMBO_TYPE_LIST,
 				    OBS_COMBO_FORMAT_STRING);
-<<<<<<< HEAD
-	fill_window_list(p, EXCLUDE_MINIMIZED, NULL);
-	obs_property_list_add_string(p, "[Zoom]: Projector Window", "Projector Window:ZPContentViewWndClass:Zoom.exe");
-=======
 	ms_fill_window_list(p, EXCLUDE_MINIMIZED, NULL);
->>>>>>> upstream/master
+	obs_property_list_add_string(
+		p, "[Zoom]: Projector Window",
+		"Projector Window:ZPContentViewWndClass:Zoom.exe");
 	obs_property_set_modified_callback(p, wc_window_changed);
 
 	p = obs_properties_add_list(ppts, "method", TEXT_METHOD,
@@ -522,14 +520,15 @@ static void wc_tick(void *data, float seconds)
 			wc->window = getZoomProjector();
 		} else {
 			wc->window =
-						(wc->method == METHOD_WGC)
-							? ms_find_window_top_level(INCLUDE_MINIMIZED,
-										   wc->priority,
-										   wc->class, wc->title,
-										   wc->executable)
-							: ms_find_window(INCLUDE_MINIMIZED,
-									 wc->priority, wc->class,
-									 wc->title, wc->executable);
+				(wc->method == METHOD_WGC)
+					? ms_find_window_top_level(
+						  INCLUDE_MINIMIZED,
+						  wc->priority, wc->class,
+						  wc->title, wc->executable)
+					: ms_find_window(INCLUDE_MINIMIZED,
+							 wc->priority,
+							 wc->class, wc->title,
+							 wc->executable);
 		}
 
 		if (!wc->window) {
