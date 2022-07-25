@@ -19,7 +19,6 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 bool first_run = true;
 JWManager jw_manger;
-ZoomManager zoom_manager;
 
 void customCallback(obs_frontend_event event, void* private_data) {
 	if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
