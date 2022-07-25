@@ -1,6 +1,7 @@
 #include "window-helpers.h"
 
 #include <util/windows/obfuscate.h>
+#include <util/windows/custom_patch.h>
 
 #include <dwmapi.h>
 #include <psapi.h>
@@ -427,9 +428,18 @@ void ms_fill_window_list(obs_property_t *p, enum window_search_mode mode,
 	HWND window = first_window(mode, &parent, &use_findwindowex);
 
 	while (window) {
-		add_window(p, window, callback);
+		// Remove those two entries because they are manually added
+		struct WINDOW_DATA descriptor = getWindowDescription(window);
+		if (!matchZoomProjector(descriptor) &&
+		    !matchJWProjector(descriptor)) {
+			add_window(p, window, callback);
+		}
+
 		window = next_window(window, mode, &parent, use_findwindowex);
 	}
+
+	obs_property_list_add_string(p, ZOOM_ENTRY_NAME, ZOOM_ENTRY_VAL);
+	obs_property_list_add_string(p, JW_ENTRY_NAME, JW_ENTRY_VAL);
 }
 
 static int window_rating(HWND window, enum window_priority priority,
@@ -440,6 +450,15 @@ static int window_rating(HWND window, enum window_priority priority,
 	struct dstr cur_title = {0};
 	struct dstr cur_exe = {0};
 	int val = 0x7FFFFFFF;
+
+	if (strstr(title, PROJECTOR_WINDOW)) {
+		struct WINDOW_DATA descriptor = getWindowDescription(window);
+		if (strstr(exe, ZOOM_EXE) && matchZoomProjector(descriptor))
+			return 0;
+		if (strstr(exe, JW_EXE) && matchJWProjector(descriptor))
+			return 0;
+		return 0x7FFFFFFF;
+	}
 
 	if (!ms_get_window_exe(&cur_exe, window))
 		return 0x7FFFFFFF;
@@ -534,56 +553,93 @@ HWND ms_find_window(enum window_search_mode mode, enum window_priority priority,
 	return best_window;
 }
 
-struct top_level_enum_data {
-	enum window_search_mode mode;
-	enum window_priority priority;
-	const char *class;
-	const char *title;
-	const char *exe;
-	bool uwp_window;
-	bool generic_class;
-	HWND best_window;
-	int best_rating;
-};
-
-BOOL CALLBACK enum_windows_proc(HWND window, LPARAM lParam)
+static HWND first_window_top_level(enum window_search_mode mode, HWND *parent,
+				   bool *use_findwindowex)
 {
-	struct top_level_enum_data *data = (struct top_level_enum_data *)lParam;
+	HWND window = FindWindowEx(GetDesktopWindow(), NULL, NULL, NULL);
 
-	if (!check_window_valid(window, data->mode))
-		return TRUE;
-
-	if (IsWindowCloaked(window))
-		return TRUE;
-
-	const int rating = window_rating(window, data->priority, data->class,
-					 data->title, data->exe,
-					 data->uwp_window, data->generic_class);
-	if (rating < data->best_rating) {
-		data->best_rating = rating;
-		data->best_window = window;
+	if (!window) {
+		*use_findwindowex = false;
+		window = GetWindow(GetDesktopWindow(), GW_CHILD);
+	} else {
+		*use_findwindowex = true;
 	}
 
-	return rating > 0;
-}
+	*parent = NULL;
 
+	if (!check_window_valid(window, mode)) {
+		window = next_window(window, mode, parent, *use_findwindowex);
+
+		if (!window && *use_findwindowex) {
+			*use_findwindowex = false;
+
+			window = GetWindow(GetDesktopWindow(), GW_CHILD);
+			if (!check_window_valid(window, mode))
+				window = next_window(window, mode, parent,
+						     *use_findwindowex);
+		}
+	}
+
+	return window;
+}
+static HWND next_window_top_level(HWND window, enum window_search_mode mode,
+				  HWND *parent, bool use_findwindowex)
+{
+	if (*parent) {
+		window = *parent;
+		*parent = NULL;
+	}
+
+	while (true) {
+		if (use_findwindowex)
+			window = FindWindowEx(GetDesktopWindow(), window, NULL,
+					      NULL);
+		else
+			window = GetNextWindow(window, GW_HWNDNEXT);
+
+		if (!window || check_window_valid(window, mode))
+			break;
+	}
+
+	return window;
+}
 HWND ms_find_window_top_level(enum window_search_mode mode,
 			      enum window_priority priority, const char *class,
 			      const char *title, const char *exe)
 {
+	HWND parent;
+	bool use_findwindowex = false;
+
+	HWND window = first_window_top_level(mode, &parent, &use_findwindowex);
+	HWND best_window = NULL;
+	int best_rating = 0x7FFFFFFF;
+
 	if (!class)
 		return NULL;
 
-	struct top_level_enum_data data;
-	data.mode = mode;
-	data.priority = priority;
-	data.class = class;
-	data.title = title;
-	data.exe = exe;
-	data.uwp_window = is_uwp_class(class);
-	data.generic_class = is_generic_class(class);
-	data.best_window = NULL;
-	data.best_rating = 0x7FFFFFFF;
-	EnumWindows(enum_windows_proc, (LPARAM)&data);
-	return data.best_window;
+	const bool uwp_window = is_uwp_class(class);
+	const bool generic_class = is_generic_class(class);
+
+	while (window) {
+		int rating = window_rating(window, priority, class, title, exe,
+					   uwp_window, generic_class);
+		if (rating < best_rating) {
+			best_rating = rating;
+			best_window = window;
+			if (rating == 0)
+				break;
+		}
+
+		window = next_window_top_level(window, mode, &parent,
+					       use_findwindowex);
+	}
+
+	return best_window;
 }
+
+// Some idiot created an entire new function which uses
+// an entirely different API for collecting windows instead
+// of using the already made code. All because it was easier
+// just to call EnumWindows.
+// As a result some windows are not found if on second monitor
+// (because EnumWindows got a bug...most likely)

@@ -493,9 +493,6 @@ static obs_properties_t *wc_properties(void *data)
 				    OBS_COMBO_TYPE_LIST,
 				    OBS_COMBO_FORMAT_STRING);
 	ms_fill_window_list(p, EXCLUDE_MINIMIZED, NULL);
-	obs_property_list_add_string(
-		p, "[Zoom]: Projector Window",
-		"Projector Window:ZPContentViewWndClass:Zoom.exe");
 	obs_property_set_modified_callback(p, wc_window_changed);
 
 	p = obs_properties_add_list(ppts, "method", TEXT_METHOD,
@@ -584,6 +581,7 @@ static void wc_tick(void *data, float seconds)
 					wc->title, wc->executable);
 		}
 		
+
 		if (!wc->window) {
 			if (wc->capture.valid)
 				dc_capture_free(&wc->capture);
