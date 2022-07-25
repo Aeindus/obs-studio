@@ -28,7 +28,6 @@
 
 #include <obs.hpp>
 
-#include "streaming-helpers.hpp"
 #include "auth-base.hpp"
 
 class OBSBasic;
@@ -41,8 +40,6 @@ class OBSPropertiesView;
 class OBSHotkeyWidget;
 
 #include "ui_OBSBasicSettings.h"
-
-#include <json11.hpp>
 
 #define VOLUME_METER_DECAY_FAST 23.53
 #define VOLUME_METER_DECAY_MEDIUM 11.76
@@ -123,6 +120,7 @@ private:
 	std::string savedTheme;
 	int sampleRateIndex = 0;
 	int channelIndex = 0;
+	bool llBufferingEnabled = false;
 
 	int lastSimpleRecQualityIdx = 0;
 	int lastServiceIdx = -1;
@@ -161,8 +159,6 @@ private:
 
 	uint32_t outputCX = 0;
 	uint32_t outputCY = 0;
-
-	StreamSettingsUI streamUi;
 
 	QPointer<QCheckBox> simpleVodTrack;
 
@@ -254,15 +250,21 @@ private:
 
 	/* stream */
 	void InitStreamPage();
+	inline bool IsCustomService() const;
+	void LoadServices(bool showAll);
 	void OnOAuthStreamKeyConnected();
 	void OnAuthConnected();
+	QString lastService;
 	int prevLangIndex;
 	bool prevBrowserAccel;
 private slots:
+	void UpdateServerList();
+	void UpdateKeyLink();
 	void UpdateVodTrackSetting();
 	void UpdateServiceRecommendations();
 	void RecreateOutputResolutionWidget();
 	void UpdateResFPSLimits();
+	void UpdateMoreInfoLink();
 	void DisplayEnforceWarning(bool checked);
 	void on_show_clicked();
 	void on_authPwShow_clicked();
@@ -344,6 +346,8 @@ private:
 
 	OBSService GetStream1Service();
 
+	bool IsServiceOutputHasNetworkFeatures();
+
 private slots:
 	void on_theme_activated(int idx);
 
@@ -378,6 +382,8 @@ private slots:
 	void ReloadAudioSources();
 	void SurroundWarning(int idx);
 	void SpeakerLayoutChanged(int idx);
+	void LowLatencyBufferingChanged(bool checked);
+	void UpdateAudioWarnings();
 	void OutputsChanged();
 	void Stream1Changed();
 	void VideoChanged();

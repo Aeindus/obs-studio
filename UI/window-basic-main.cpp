@@ -376,7 +376,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 #endif
 
 #ifdef __linux__
-	ui->actionE_xit->setShortcut(Qt::CTRL + Qt::Key_Q);
+	ui->actionE_xit->setShortcut(Qt::CTRL | Qt::Key_Q);
 #endif
 
 	auto addNudge = [this](const QKeySequence &seq, const char *s) {
@@ -391,10 +391,10 @@ OBSBasic::OBSBasic(QWidget *parent)
 	addNudge(Qt::Key_Down, SLOT(NudgeDown()));
 	addNudge(Qt::Key_Left, SLOT(NudgeLeft()));
 	addNudge(Qt::Key_Right, SLOT(NudgeRight()));
-	addNudge(Qt::SHIFT + Qt::Key_Up, SLOT(NudgeUpFar()));
-	addNudge(Qt::SHIFT + Qt::Key_Down, SLOT(NudgeDownFar()));
-	addNudge(Qt::SHIFT + Qt::Key_Left, SLOT(NudgeLeftFar()));
-	addNudge(Qt::SHIFT + Qt::Key_Right, SLOT(NudgeRightFar()));
+	addNudge(Qt::SHIFT | Qt::Key_Up, SLOT(NudgeUpFar()));
+	addNudge(Qt::SHIFT | Qt::Key_Down, SLOT(NudgeDownFar()));
+	addNudge(Qt::SHIFT | Qt::Key_Left, SLOT(NudgeLeftFar()));
+	addNudge(Qt::SHIFT | Qt::Key_Right, SLOT(NudgeRightFar()));
 
 	assignDockToggle(ui->scenesDock, ui->toggleScenes);
 	assignDockToggle(ui->sourcesDock, ui->toggleSources);
@@ -404,10 +404,10 @@ OBSBasic::OBSBasic(QWidget *parent)
 	assignDockToggle(statsDock, ui->toggleStats);
 
 	// Register shortcuts for Undo/Redo
-	ui->actionMainUndo->setShortcut(Qt::CTRL + Qt::Key_Z);
+	ui->actionMainUndo->setShortcut(Qt::CTRL | Qt::Key_Z);
 	QList<QKeySequence> shrt;
-	shrt << QKeySequence((Qt::CTRL | Qt::SHIFT) + Qt::Key_Z)
-	     << QKeySequence(Qt::CTRL + Qt::Key_Y);
+	shrt << QKeySequence((Qt::CTRL | Qt::SHIFT) | Qt::Key_Z)
+	     << QKeySequence(Qt::CTRL | Qt::Key_Y);
 	ui->actionMainRedo->setShortcuts(shrt);
 
 	ui->actionMainUndo->setShortcutContext(Qt::ApplicationShortcut);
@@ -3110,6 +3110,15 @@ void OBSBasic::UpdateContextBar(bool force)
 				c->Init();
 				ui->emptySpace->layout()->addWidget(c);
 
+			} else if (strcmp(id,
+					  "wasapi_process_output_capture") ==
+				   0) {
+				ApplicationAudioCaptureToolbar *c =
+					new ApplicationAudioCaptureToolbar(
+						ui->emptySpace, source);
+				c->Init();
+				ui->emptySpace->layout()->addWidget(c);
+
 			} else if (strcmp(id, "window_capture") == 0 ||
 				   strcmp(id, "xcomposite_input") == 0) {
 				WindowCaptureToolbar *c =
@@ -4409,7 +4418,7 @@ bool OBSBasic::ResetAudio()
 {
 	ProfileScope("OBSBasic::ResetAudio");
 
-	struct obs_audio_info ai;
+	struct obs_audio_info2 ai = {};
 	ai.samples_per_sec =
 		config_get_uint(basicConfig, "Audio", "SampleRate");
 
@@ -4431,7 +4440,14 @@ bool OBSBasic::ResetAudio()
 	else
 		ai.speakers = SPEAKERS_STEREO;
 
-	return obs_reset_audio(&ai);
+	bool lowLatencyAudioBuffering = config_get_bool(
+		GetGlobalConfig(), "Audio", "LowLatencyAudioBuffering");
+	if (lowLatencyAudioBuffering) {
+		ai.max_buffering_ms = 20;
+		ai.fixed_buffering = true;
+	}
+
+	return obs_reset_audio2(&ai);
 }
 
 extern char *get_new_source_name(const char *name, const char *format);
@@ -4890,42 +4906,6 @@ void OBSBasic::on_actionShowMissingFiles_triggered()
 				this, QTStr("MissingFiles.NoMissing.Title"),
 				QTStr("MissingFiles.NoMissing.Text"));
 	}
-}
-
-void save_audio_source(int channel, obs_data_t *save)
-{
-	OBSSourceAutoRelease source = obs_get_output_source(channel);
-	if (!source)
-		return;
-
-	OBSDataAutoRelease obj = obs_data_create();
-
-	obs_data_set_double(obj, "vol", obs_source_get_volume(source));
-	obs_data_set_double(obj, "balance",
-			    obs_source_get_balance_value(source));
-	obs_data_set_double(obj, "mixers", obs_source_get_audio_mixers(source));
-	obs_data_set_double(obj, "sync", obs_source_get_sync_offset(source));
-	obs_data_set_double(obj, "flags", obs_source_get_flags(source));
-
-	obs_data_set_obj(save, std::to_string(channel).c_str(), obj);
-}
-
-void load_audio_source(int channel, obs_data_t *data)
-{
-	OBSSourceAutoRelease source = obs_get_output_source(channel);
-	if (!source)
-		return;
-
-	OBSDataAutoRelease save =
-		obs_data_get_obj(data, std::to_string(channel).c_str());
-
-	obs_source_set_volume(source, obs_data_get_double(save, "vol"));
-	obs_source_set_balance_value(source,
-				     obs_data_get_double(save, "balance"));
-	obs_source_set_audio_mixers(source,
-				    obs_data_get_double(save, "mixers"));
-	obs_source_set_sync_offset(source, obs_data_get_double(save, "sync"));
-	obs_source_set_flags(source, obs_data_get_double(save, "flags"));
 }
 
 void OBSBasic::on_actionAdvAudioProperties_triggered()

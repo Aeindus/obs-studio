@@ -66,10 +66,9 @@ class OBSBasicStats;
 #define SIMPLE_ENCODER_X264_LOWCPU "x264_lowcpu"
 #define SIMPLE_ENCODER_QSV "qsv"
 #define SIMPLE_ENCODER_NVENC "nvenc"
-#ifdef ENABLE_HEVC
 #define SIMPLE_ENCODER_NVENC_HEVC "nvenc_hevc"
-#endif
 #define SIMPLE_ENCODER_AMD "amd"
+#define SIMPLE_ENCODER_AMD_HEVC "amd_hevc"
 #define SIMPLE_ENCODER_APPLE_H264 "apple_h264"
 
 #define PREVIEW_EDGE_SIZE 10
@@ -166,6 +165,8 @@ class OBSBasic : public OBSMainWindow {
 			   DESIGNABLE true)
 	Q_PROPERTY(QIcon defaultIcon READ GetDefaultIcon WRITE SetDefaultIcon
 			   DESIGNABLE true)
+	Q_PROPERTY(QIcon audioProcessOutputIcon READ GetAudioProcessOutputIcon
+			   WRITE SetAudioProcessOutputIcon DESIGNABLE true)
 
 	friend class OBSAbout;
 	friend class OBSBasicPreview;
@@ -561,6 +562,7 @@ private:
 	QIcon groupIcon;
 	QIcon sceneIcon;
 	QIcon defaultIcon;
+	QIcon audioProcessOutputIcon;
 
 	QIcon GetImageIcon() const;
 	QIcon GetColorIcon() const;
@@ -575,6 +577,7 @@ private:
 	QIcon GetMediaIcon() const;
 	QIcon GetBrowserIcon() const;
 	QIcon GetDefaultIcon() const;
+	QIcon GetAudioProcessOutputIcon() const;
 
 	QSlider *tBar;
 	bool tBarActive = false;
@@ -776,6 +779,7 @@ private slots:
 	void SetGroupIcon(const QIcon &icon);
 	void SetSceneIcon(const QIcon &icon);
 	void SetDefaultIcon(const QIcon &icon);
+	void SetAudioProcessOutputIcon(const QIcon &icon);
 
 	void TBarChanged(int value);
 	void TBarReleased();
@@ -819,7 +823,6 @@ private:
 	OBSSource prevFTBSource = nullptr;
 
 public:
-	undo_stack undo_s;
 	OBSSource GetProgramSource();
 	OBSScene GetCurrentScene();
 
@@ -1151,7 +1154,14 @@ public slots:
 	void UpdateContextBarDeferred(bool force = false);
 	void UpdateContextBarVisibility();
 
+private:
+	std::unique_ptr<Ui::OBSBasic> ui;
+
 public:
+	/* `undo_s` needs to be declared after `ui` to prevent an uninitialized
+	 * warning for `ui` while initializing `undo_s`. */
+	undo_stack undo_s;
+
 	explicit OBSBasic(QWidget *parent = 0);
 	virtual ~OBSBasic();
 
@@ -1163,9 +1173,6 @@ public:
 				   const char *file) const override;
 
 	static void InitBrowserPanelSafeBlock();
-
-private:
-	std::unique_ptr<Ui::OBSBasic> ui;
 };
 
 class SceneRenameDelegate : public QStyledItemDelegate {

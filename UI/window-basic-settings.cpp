@@ -760,6 +760,8 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		SLOT(SurroundWarning(int)));
 	connect(ui->channelSetup, SIGNAL(currentIndexChanged(int)), this,
 		SLOT(SpeakerLayoutChanged(int)));
+	connect(ui->lowLatencyBuffering, SIGNAL(clicked(bool)), this,
+		SLOT(LowLatencyBufferingChanged(bool)));
 	connect(ui->simpleOutRecQuality, SIGNAL(currentIndexChanged(int)), this,
 		SLOT(SimpleRecordingQualityChanged()));
 	connect(ui->simpleOutRecQuality, SIGNAL(currentIndexChanged(int)), this,
@@ -926,6 +928,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 
 	channelIndex = ui->channelSetup->currentIndex();
 	sampleRateIndex = ui->sampleRate->currentIndex();
+	llBufferingEnabled = ui->lowLatencyBuffering->isChecked();
 
 	QRegularExpression rx("\\d{1,5}x\\d{1,5}");
 	QValidator *validator = new QRegularExpressionValidator(rx, this);
@@ -935,6 +938,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	connect(ui->useStreamKeyAdv, SIGNAL(clicked()), this,
 		SLOT(UseStreamKeyAdvClicked()));
 
+	UpdateAudioWarnings();
 	UpdateAdvNetworkGroup();
 }
 
@@ -1236,15 +1240,10 @@ void OBSBasicSettings::LoadThemeList()
 		while (it.hasNext()) {
 			it.next();
 			QString name = it.fileInfo().completeBaseName();
-			ui->theme->addItem(name);
+			ui->theme->addItem(name, name);
 			uniqueSet.insert(name);
 		}
 	}
-
-	QString defaultTheme;
-	defaultTheme += DEFAULT_THEME;
-	defaultTheme += " ";
-	defaultTheme += QTStr("Default");
 
 	/* Check shipped themes. */
 	QDirIterator uIt(QString(themeDir.c_str()), QStringList() << "*.qss",
@@ -1252,20 +1251,16 @@ void OBSBasicSettings::LoadThemeList()
 	while (uIt.hasNext()) {
 		uIt.next();
 		QString name = uIt.fileInfo().completeBaseName();
+		QString value = name;
 
 		if (name == DEFAULT_THEME)
-			name = defaultTheme;
+			name += " " + QTStr("Default");
 
-		if (!uniqueSet.contains(name) && name != "Default")
-			ui->theme->addItem(name);
+		if (!uniqueSet.contains(value) && name != "Default")
+			ui->theme->addItem(name, value);
 	}
 
-	std::string themeName = App()->GetTheme();
-
-	if (themeName == DEFAULT_THEME)
-		themeName = QT_TO_UTF8(defaultTheme);
-
-	int idx = ui->theme->findText(themeName.c_str());
+	int idx = ui->theme->findData(QT_UTF8(App()->GetTheme()));
 	if (idx != -1)
 		ui->theme->setCurrentIndex(idx);
 }
@@ -2538,6 +2533,8 @@ void OBSBasicSettings::LoadAudioSettings()
 		config_get_double(main->Config(), "Audio", "MeterDecayRate");
 	uint32_t peakMeterTypeIdx =
 		config_get_uint(main->Config(), "Audio", "PeakMeterType");
+	bool enableLLAudioBuffering = config_get_bool(
+		GetGlobalConfig(), "Audio", "LowLatencyAudioBuffering");
 
 	loading = true;
 
@@ -2574,6 +2571,7 @@ void OBSBasicSettings::LoadAudioSettings()
 		ui->meterDecayRate->setCurrentIndex(0);
 
 	ui->peakMeterType->setCurrentIndex(peakMeterTypeIdx);
+	ui->lowLatencyBuffering->setChecked(enableLLAudioBuffering);
 
 	LoadAudioDevices();
 	LoadAudioSources();
@@ -3089,14 +3087,7 @@ void OBSBasicSettings::SaveGeneralSettings()
 				  language.c_str());
 
 	int themeIndex = ui->theme->currentIndex();
-	QString themeData = ui->theme->itemText(themeIndex);
-	QString defaultTheme;
-	defaultTheme += DEFAULT_THEME;
-	defaultTheme += " ";
-	defaultTheme += QTStr("Default");
-
-	if (themeData == defaultTheme)
-		themeData = DEFAULT_THEME;
+	QString themeData = ui->theme->itemData(themeIndex).toString();
 
 	if (WidgetChanged(ui->theme))
 		config_set_string(GetGlobalConfig(), "General", "CurrentTheme2",
@@ -3555,6 +3546,8 @@ void OBSBasicSettings::SaveOutputSettings()
 	else if (encoder == SIMPLE_ENCODER_NVENC)
 		presetType = "NVENCPreset";
 #ifdef ENABLE_HEVC
+	else if (encoder == SIMPLE_ENCODER_AMD_HEVC)
+		presetType = "AMDPreset";
 	else if (encoder == SIMPLE_ENCODER_NVENC_HEVC)
 		presetType = "NVENCPreset";
 #endif
@@ -3756,6 +3749,14 @@ void OBSBasicSettings::SaveAudioSettings()
 		main->UpdateVolumeControlsPeakMeterType();
 	}
 
+	if (WidgetChanged(ui->lowLatencyBuffering)) {
+		bool enableLLAudioBuffering =
+			ui->lowLatencyBuffering->isChecked();
+		config_set_bool(GetGlobalConfig(), "Audio",
+				"LowLatencyAudioBuffering",
+				enableLLAudioBuffering);
+	}
+
 	for (auto &audioSource : audioSources) {
 		auto source = OBSGetStrongRef(get<0>(audioSource));
 		if (!source)
@@ -3938,15 +3939,7 @@ void OBSBasicSettings::reject()
 
 void OBSBasicSettings::on_theme_activated(int idx)
 {
-	QString currT = ui->theme->itemText(idx);
-
-	QString defaultTheme;
-	defaultTheme += DEFAULT_THEME;
-	defaultTheme += " ";
-	defaultTheme += QTStr("Default");
-
-	if (currT == defaultTheme)
-		currT = DEFAULT_THEME;
+	QString currT = ui->theme->itemData(idx).toString();
 
 	App()->SetTheme(currT.toUtf8().constData());
 }
@@ -4289,9 +4282,12 @@ void OBSBasicSettings::AudioChangedRestart()
 	if (!loading) {
 		int currentChannelIndex = ui->channelSetup->currentIndex();
 		int currentSampleRateIndex = ui->sampleRate->currentIndex();
+		bool currentLLAudioBufVal =
+			ui->lowLatencyBuffering->isChecked();
 
 		if (currentChannelIndex != channelIndex ||
-		    currentSampleRateIndex != sampleRateIndex) {
+		    currentSampleRateIndex != sampleRateIndex ||
+		    currentLLAudioBufVal != llBufferingEnabled) {
 			audioChanged = true;
 			ui->audioMsg->setText(
 				QTStr("Basic.Settings.ProgramRestart"));
@@ -4320,13 +4316,9 @@ void OBSBasicSettings::SpeakerLayoutChanged(int idx)
 	bool surround = IsSurround(speakerLayout.c_str());
 
 	if (surround) {
-		QString warning = QTStr(MULTI_CHANNEL_WARNING ".Enabled") +
-				  QStringLiteral("\n\n") +
-				  QTStr(MULTI_CHANNEL_WARNING);
 		/*
 		 * Display all bitrates
 		 */
-		ui->audioMsg_2->setText(warning);
 		PopulateAACBitrates(
 			{ui->simpleOutputABitrate, ui->advOutTrack1Bitrate,
 			 ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate,
@@ -4337,7 +4329,6 @@ void OBSBasicSettings::SpeakerLayoutChanged(int idx)
 		 * Reset audio bitrate for simple and adv mode, update list of
 		 * bitrates and save setting.
 		 */
-		ui->audioMsg_2->setText(QString());
 		RestrictResetBitrates(
 			{ui->simpleOutputABitrate, ui->advOutTrack1Bitrate,
 			 ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate,
@@ -4353,6 +4344,8 @@ void OBSBasicSettings::SpeakerLayoutChanged(int idx)
 		SaveCombo(ui->advOutTrack5Bitrate, "AdvOut", "Track5Bitrate");
 		SaveCombo(ui->advOutTrack6Bitrate, "AdvOut", "Track6Bitrate");
 	}
+
+	UpdateAudioWarnings();
 }
 
 void OBSBasicSettings::HideOBSWindowWarning(int state)
@@ -4782,12 +4775,16 @@ void OBSBasicSettings::FillSimpleRecordingValues()
 			ENCODER_STR("Hardware.NVENC.H264"),
 			QString(SIMPLE_ENCODER_NVENC));
 #ifdef ENABLE_HEVC
+	if (EncoderAvailable("h265_texture_amf"))
+		ui->simpleOutRecEncoder->addItem(
+			ENCODER_STR("Hardware.AMD.HEVC"),
+			QString(SIMPLE_ENCODER_AMD_HEVC));
 	if (EncoderAvailable("ffmpeg_hevc_nvenc"))
 		ui->simpleOutRecEncoder->addItem(
 			ENCODER_STR("Hardware.NVENC.HEVC"),
 			QString(SIMPLE_ENCODER_NVENC_HEVC));
 #endif
-	if (EncoderAvailable("amd_amf_h264"))
+	if (EncoderAvailable("h264_texture_amf"))
 		ui->simpleOutRecEncoder->addItem(
 			ENCODER_STR("Hardware.AMD.H264"),
 			QString(SIMPLE_ENCODER_AMD));
@@ -4815,12 +4812,16 @@ void OBSBasicSettings::FillSimpleStreamingValues()
 			ENCODER_STR("Hardware.NVENC.H264"),
 			QString(SIMPLE_ENCODER_NVENC));
 #ifdef ENABLE_HEVC
+	if (EncoderAvailable("h265_texture_amf"))
+		ui->simpleOutStrEncoder->addItem(
+			ENCODER_STR("Hardware.AMD.HEVC"),
+			QString(SIMPLE_ENCODER_AMD_HEVC));
 	if (EncoderAvailable("ffmpeg_hevc_nvenc"))
 		ui->simpleOutStrEncoder->addItem(
 			ENCODER_STR("Hardware.NVENC.HEVC"),
 			QString(SIMPLE_ENCODER_NVENC_HEVC));
 #endif
-	if (EncoderAvailable("amd_amf_h264"))
+	if (EncoderAvailable("h264_texture_amf"))
 		ui->simpleOutStrEncoder->addItem(
 			ENCODER_STR("Hardware.AMD.H264"),
 			QString(SIMPLE_ENCODER_AMD));
@@ -4891,9 +4892,12 @@ void OBSBasicSettings::SimpleStreamingEncoderChanged()
 		defaultPreset = "balanced";
 		preset = curQSVPreset;
 
-	} else if (encoder == SIMPLE_ENCODER_NVENC) {
-		obs_properties_t *props =
-			obs_get_encoder_properties("ffmpeg_nvenc");
+	} else if (encoder == SIMPLE_ENCODER_NVENC ||
+		   encoder == SIMPLE_ENCODER_NVENC_HEVC) {
+		const char *name = encoder == SIMPLE_ENCODER_NVENC
+					   ? "ffmpeg_nvenc"
+					   : "ffmpeg_hevc_nvenc";
+		obs_properties_t *props = obs_get_encoder_properties(name);
 
 		obs_property_t *p = obs_properties_get(props, "preset");
 		size_t num = obs_property_list_item_count(p);
@@ -4917,35 +4921,8 @@ void OBSBasicSettings::SimpleStreamingEncoderChanged()
 		defaultPreset = "default";
 		preset = curNVENCPreset;
 
-#ifdef ENABLE_HEVC
-	} else if (encoder == SIMPLE_ENCODER_NVENC_HEVC) {
-		obs_properties_t *props =
-			obs_get_encoder_properties("ffmpeg_hevc_nvenc");
-
-		obs_property_t *p = obs_properties_get(props, "preset");
-		size_t num = obs_property_list_item_count(p);
-		for (size_t i = 0; i < num; i++) {
-			const char *name = obs_property_list_item_name(p, i);
-			const char *val = obs_property_list_item_string(p, i);
-
-			/* bluray is for ideal bluray disc recording settings,
-			 * not streaming */
-			if (strcmp(val, "bd") == 0)
-				continue;
-			/* lossless should of course not be used to stream */
-			if (astrcmp_n(val, "lossless", 8) == 0)
-				continue;
-
-			ui->simpleOutPreset->addItem(QT_UTF8(name), val);
-		}
-
-		obs_properties_destroy(props);
-
-		defaultPreset = "default";
-		preset = curNVENCPreset;
-#endif
-
-	} else if (encoder == SIMPLE_ENCODER_AMD) {
+	} else if (encoder == SIMPLE_ENCODER_AMD ||
+		   encoder == SIMPLE_ENCODER_AMD_HEVC) {
 		ui->simpleOutPreset->addItem("Speed", "speed");
 		ui->simpleOutPreset->addItem("Balanced", "balanced");
 		ui->simpleOutPreset->addItem("Quality", "quality");
@@ -5259,6 +5236,56 @@ void OBSBasicSettings::SurroundWarning(int idx)
 	lastChannelSetupIdx = idx;
 }
 
+#define LL_BUFFERING_WARNING "Basic.Settings.Audio.LowLatencyBufferingWarning"
+
+void OBSBasicSettings::UpdateAudioWarnings()
+{
+	QString speakerLayoutQstr = ui->channelSetup->currentText();
+	bool surround = IsSurround(QT_TO_UTF8(speakerLayoutQstr));
+	bool lowBufferingActive = ui->lowLatencyBuffering->isChecked();
+
+	QString text;
+
+	if (surround) {
+		text = QTStr(MULTI_CHANNEL_WARNING ".Enabled") +
+		       QStringLiteral("\n\n") + QTStr(MULTI_CHANNEL_WARNING);
+	}
+
+	if (lowBufferingActive) {
+		if (!text.isEmpty())
+			text += QStringLiteral("\n\n");
+
+		text += QTStr(LL_BUFFERING_WARNING ".Enabled") +
+			QStringLiteral("\n\n") + QTStr(LL_BUFFERING_WARNING);
+	}
+
+	ui->audioMsg_2->setText(text);
+}
+
+void OBSBasicSettings::LowLatencyBufferingChanged(bool checked)
+{
+	if (checked) {
+		QString warningStr = QTStr(LL_BUFFERING_WARNING) +
+				     QStringLiteral("\n\n") +
+				     QTStr(LL_BUFFERING_WARNING ".Confirm");
+
+		auto button = OBSMessageBox::question(
+			this, QTStr(LL_BUFFERING_WARNING ".Title"), warningStr);
+
+		if (button == QMessageBox::No) {
+			QMetaObject::invokeMethod(ui->lowLatencyBuffering,
+						  "setChecked",
+						  Qt::QueuedConnection,
+						  Q_ARG(bool, false));
+			return;
+		}
+	}
+
+	QMetaObject::invokeMethod(this, "UpdateAudioWarnings",
+				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, "AudioChangedRestart");
+}
+
 void OBSBasicSettings::SimpleRecordingQualityLosslessWarning(int idx)
 {
 	if (idx == lastSimpleRecQualityIdx || idx == -1)
@@ -5425,7 +5452,7 @@ void OBSBasicSettings::RecreateOutputResolutionWidget()
 
 void OBSBasicSettings::UpdateAdvNetworkGroup()
 {
-	bool enabled = streamUi.IsServiceOutputHasNetworkFeatures();
+	bool enabled = IsServiceOutputHasNetworkFeatures();
 
 	ui->advNetworkDisabled->setVisible(!enabled);
 

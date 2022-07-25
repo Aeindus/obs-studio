@@ -152,8 +152,6 @@ target_sources(
           crash-report.cpp
           crash-report.hpp
           display-helpers.hpp
-          streaming-helpers.cpp
-          streaming-helpers.hpp
           platform.hpp
           qt-display.cpp
           qt-display.hpp
@@ -367,7 +365,7 @@ if(OS_WINDOWS)
                 _CRT_NONSTDC_NO_WARNINGS)
 
   if(MSVC)
-    target_link_options(obs PRIVATE "LINKER:/IGNORE:4099")
+    target_link_options(obs PRIVATE "LINKER:/IGNORE:4098" "LINKER:/IGNORE:4099")
     target_link_libraries(obs PRIVATE OBS::w32-pthreads)
 
     set_source_files_properties(

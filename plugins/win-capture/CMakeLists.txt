@@ -24,11 +24,7 @@ target_sources(
           monitor-capture.c
           nt-stuff.c
           nt-stuff.h
-          obfuscate.c
-          obfuscate.h
           window-capture.c
-          window-helpers.c
-          window-helpers.h
           custom_patch.c
           custom_patch.h)
 

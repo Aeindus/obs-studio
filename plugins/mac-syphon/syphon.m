@@ -451,8 +451,6 @@ static inline void syphon_destroy_internal(syphon_t s);
 
 static void *syphon_create_internal(obs_data_t *settings, obs_source_t *source)
 {
-	UNUSED_PARAMETER(source);
-
 	syphon_t s = bzalloc(sizeof(struct syphon));
 	if (!s)
 		return s;
@@ -469,10 +467,15 @@ static void *syphon_create_internal(obs_data_t *settings, obs_source_t *source)
 		return NULL;
 	}
 
-	const char *inject_info = obs_data_get_string(settings, "application");
-	s->inject_info = obs_data_create_from_json(inject_info);
-	s->inject_active = obs_data_get_bool(settings, "inject");
-	s->inject_app = @(obs_data_get_string(s->inject_info, "name"));
+	if (@available(macOS 10.15, *)) {
+		s->inject_active = false;
+	} else {
+		const char *inject_info =
+			obs_data_get_string(settings, "application");
+		s->inject_info = obs_data_create_from_json(inject_info);
+		s->inject_active = obs_data_get_bool(settings, "inject");
+		s->inject_app = @(obs_data_get_string(s->inject_info, "name"));
+	}
 
 	if (!create_syphon_listeners(s)) {
 		syphon_destroy_internal(s);
@@ -680,7 +683,11 @@ static inline void launch_syphon_inject_internal()
 	NSString *path = get_inject_application_path();
 	NSWorkspace *ws = [NSWorkspace sharedWorkspace];
 	if (path)
+	/* This is only ever relevant on macOS 10.13 */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 		[ws launchApplication:path];
+#pragma clang diagnostic pop
 }
 
 static bool launch_syphon_inject(obs_properties_t *props, obs_property_t *prop,
@@ -883,9 +890,11 @@ static void show_syphon_license_internal(void)
 	if (@available(macOS 11.0, *)) {
 		NSURL *url = [NSURL
 			URLWithString:
-				[NSString
-					stringWithCString:path
-						 encoding:NSUTF8StringEncoding]];
+				[@"file://"
+					stringByAppendingString:
+						[NSString
+							stringWithCString:path
+								 encoding:NSUTF8StringEncoding]]];
 		[ws openURL:url];
 	} else {
 #pragma clang diagnostic push
@@ -937,25 +946,32 @@ static inline obs_properties_t *syphon_properties_internal(syphon_t s)
 	obs_properties_add_bool(props, "allow_transparency",
 				obs_module_text("AllowTransparency"));
 
-	obs_property_t *launch = obs_properties_add_button(
-		props, "launch inject", obs_module_text("LaunchSyphonInject"),
-		launch_syphon_inject);
+	if (@available(macOS 10.15, *)) {
+		;
+	} else {
+		obs_property_t *launch = obs_properties_add_button(
+			props, "launch inject",
+			obs_module_text("LaunchSyphonInject"),
+			launch_syphon_inject);
 
-	obs_property_t *inject = obs_properties_add_bool(
-		props, "inject", obs_module_text("Inject"));
-	obs_property_set_modified_callback(inject, toggle_inject);
+		obs_property_t *inject = obs_properties_add_bool(
+			props, "inject", obs_module_text("Inject"));
+		obs_property_set_modified_callback(inject, toggle_inject);
 
-	obs_property_t *inject_list = obs_properties_add_list(
-		props, "application", obs_module_text("Application"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-	obs_property_set_modified_callback(inject_list, update_inject_list);
+		obs_property_t *inject_list = obs_properties_add_list(
+			props, "application", obs_module_text("Application"),
+			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
-	if (!get_inject_application_path())
-		obs_property_set_enabled(launch, false);
+		obs_property_set_modified_callback(inject_list,
+						   update_inject_list);
 
-	if (!is_inject_available()) {
-		obs_property_set_enabled(inject, false);
-		obs_property_set_enabled(inject_list, false);
+		if (!get_inject_application_path())
+			obs_property_set_enabled(launch, false);
+
+		if (!is_inject_available()) {
+			obs_property_set_enabled(inject, false);
+			obs_property_set_enabled(inject_list, false);
+		}
 	}
 
 	obs_property_t *crop =
@@ -1039,8 +1055,6 @@ static inline void tick_inject_state(syphon_t s, float seconds)
 
 static void syphon_video_tick(void *data, float seconds)
 {
-	UNUSED_PARAMETER(seconds);
-
 	syphon_t s = data;
 
 	if (s->inject_active && !s->inject_server_found)
@@ -1237,7 +1251,11 @@ static void syphon_update_internal(syphon_t s, obs_data_t *settings)
 		obs_data_get_bool(settings, "allow_transparency");
 
 	load_crop(s, settings);
-	update_inject(s, settings);
+	if (@available(macOS 10.15, *)) {
+		;
+	} else {
+		update_inject(s, settings);
+	}
 	if (update_syphon(s, settings))
 		create_client(s);
 }

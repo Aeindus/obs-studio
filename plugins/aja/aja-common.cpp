@@ -201,9 +201,8 @@ void populate_pixel_format_list(NTV2DeviceID deviceID, obs_property_t *list)
 	}
 }
 
-void populate_sdi_transport_list(obs_property_t *list,
-				 IOSelection io OBS_UNUSED,
-				 NTV2DeviceID deviceID, bool capture)
+void populate_sdi_transport_list(obs_property_t *list, NTV2DeviceID deviceID,
+				 bool capture)
 {
 	if (capture) {
 		obs_property_list_add_int(list, obs_module_text("Auto"),
@@ -241,8 +240,6 @@ void populate_sdi_4k_transport_list(obs_property_t *list)
 bool aja_video_format_changed(obs_properties_t *props, obs_property_t *list,
 			      obs_data_t *settings)
 {
-	UNUSED_PARAMETER(list);
-
 	auto vid_fmt = static_cast<NTV2VideoFormat>(
 		obs_data_get_int(settings, kUIPropVideoFormatSelect.id));
 	size_t itemCount = obs_property_list_item_count(list);
@@ -1021,9 +1018,9 @@ inline bool IsStandard1080p(NTV2Standard standard)
 	return false;
 }
 
-VPIDStandard DetermineVPIDStandard(NTV2DeviceID id OBS_UNUSED, IOSelection io,
-				   NTV2VideoFormat vf, NTV2PixelFormat pf,
-				   SDITransport trx, SDITransport4K t4k)
+VPIDStandard DetermineVPIDStandard(IOSelection io, NTV2VideoFormat vf,
+				   NTV2PixelFormat pf, SDITransport trx,
+				   SDITransport4K t4k)
 {
 	VPIDStandard vpid = VPIDStandard_Unknown;
 	auto rd = aja::DetermineRasterDefinition(vf);
