@@ -21,7 +21,7 @@ struct WINDOW_DATA {
 	DWORD tid;
 	char caption_name[256];
 	char class_name[256];
-	int monitor_id;
+	uint64_t monitor_id;
 	bool visible_on_screen;
 	bool primary_monitor;
 
