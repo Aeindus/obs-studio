@@ -52,6 +52,11 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 - **VPScena 5** contine doua capturi de ecran dar a doua este dezactivata. Prima va captura fereastra a 3-a a Zoomului. Insa daca aceasta nu a fost activata inainte de inceperea sesiunii atunci ea nu mai poate fi deschisa (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop.
 
+Development
+-------------------
+
+Submodules are a headache. If after a merge there are modified/changed files belonging to a submodule then follow these instructions: https://stackoverflow.com/a/32581852/3971417
+
 What is OBS Studio?
 -------------------
 
