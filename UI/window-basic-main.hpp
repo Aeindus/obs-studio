@@ -205,6 +205,12 @@ class OBSBasic : public OBSMainWindow {
 		ContextBarSize_Normal
 	};
 
+	enum class CenterType {
+		Scene,
+		Vertical,
+		Horizontal,
+	};
+
 private:
 	obs_frontend_callbacks *api = nullptr;
 
@@ -440,7 +446,8 @@ private:
 	obs_source_t *FindTransition(const char *name);
 	OBSSource GetCurrentTransition();
 	obs_data_array_t *SaveTransitions();
-	void LoadTransitions(obs_data_array_t *transitions);
+	void LoadTransitions(obs_data_array_t *transitions,
+			     obs_load_source_cb cb, void *private_data);
 
 	obs_source_t *fadeTransition;
 	obs_source_t *cutTransition;
@@ -534,6 +541,8 @@ private:
 	void ReceivedIntroJson(const QString &text);
 	void ShowWhatsNew(const QString &url);
 
+	void UpdatePreviewProgramIndicators();
+
 #ifdef BROWSER_AVAILABLE
 	QList<QSharedPointer<QDockWidget>> extraBrowserDocks;
 	QList<QSharedPointer<QAction>> extraBrowserDockActions;
@@ -611,6 +620,17 @@ private:
 
 	void UpdatePreviewSafeAreas();
 	bool drawSafeAreas = false;
+
+	void CenterSelectedSceneItems(const CenterType &centerType);
+	void ShowMissingFilesDialog(obs_missing_files_t *files);
+
+	QColor selectionColor;
+	QColor cropColor;
+	QColor hoverColor;
+
+	QColor GetSelectionColor() const;
+	QColor GetCropColor() const;
+	QColor GetHoverColor() const;
 
 public slots:
 	void DeferSaveBegin();
@@ -856,6 +876,8 @@ public:
 	void AddVCamButton();
 	void ResetOutputs();
 
+	void RefreshVolumeColors();
+
 	void ResetAudioDevice(const char *sourceId, const char *deviceId,
 			      const char *deviceDesc, int channel);
 
@@ -977,6 +999,7 @@ private slots:
 	void on_actionUploadLastLog_triggered();
 	void on_actionViewCurrentLog_triggered();
 	void on_actionCheckForUpdates_triggered();
+	void on_actionRepair_triggered();
 
 	void on_actionShowCrashLogs_triggered();
 	void on_actionUploadLastCrashLog_triggered();

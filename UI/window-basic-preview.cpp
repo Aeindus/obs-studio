@@ -30,6 +30,8 @@ OBSBasicPreview::~OBSBasicPreview()
 		gs_texture_destroy(overflow);
 	if (rectFill)
 		gs_vertexbuffer_destroy(rectFill);
+	if (circleFill)
+		gs_vertexbuffer_destroy(circleFill);
 
 	obs_leave_graphics();
 }
@@ -45,6 +47,19 @@ vec2 OBSBasicPreview::GetMouseEventPos(QMouseEvent *event)
 		 (qtPos.y() - main->previewY / pixelRatio) * scale);
 
 	return pos;
+}
+
+static void RotatePos(vec2 *pos, float rot)
+{
+	float cosR = cos(rot);
+	float sinR = sin(rot);
+
+	vec2 newPos;
+
+	newPos.x = cosR * pos->x - sinR * pos->y;
+	newPos.y = sinR * pos->x + cosR * pos->y;
+
+	vec2_copy(pos, &newPos);
 }
 
 struct SceneFindData {
@@ -287,6 +302,11 @@ struct HandleFindData {
 
 	OBSSceneItem item;
 	ItemHandle handle = ItemHandle::None;
+	float angle = 0.0f;
+	vec2 rotatePoint;
+	vec2 offsetPoint;
+
+	float angleOffset = 0.0f;
 
 	HandleFindData(const HandleFindData &) = delete;
 	HandleFindData(HandleFindData &&) = delete;
@@ -304,7 +324,10 @@ struct HandleFindData {
 		: pos(hfd.pos),
 		  radius(hfd.radius),
 		  item(hfd.item),
-		  handle(hfd.handle)
+		  handle(hfd.handle),
+		  angle(hfd.angle),
+		  rotatePoint(hfd.rotatePoint),
+		  offsetPoint(hfd.offsetPoint)
 	{
 		obs_sceneitem_get_draw_transform(parent, &parent_xform);
 	}
@@ -318,10 +341,16 @@ static bool FindHandleAtPos(obs_scene_t *scene, obs_sceneitem_t *item,
 	if (!obs_sceneitem_selected(item)) {
 		if (obs_sceneitem_is_group(item)) {
 			HandleFindData newData(data, item);
+			newData.angleOffset = obs_sceneitem_get_rot(item);
+
 			obs_sceneitem_group_enum_items(item, FindHandleAtPos,
 						       &newData);
+
 			data.item = newData.item;
 			data.handle = newData.handle;
+			data.angle = newData.angle;
+			data.rotatePoint = newData.rotatePoint;
+			data.offsetPoint = newData.offsetPoint;
 		}
 
 		return true;
@@ -357,6 +386,40 @@ static bool FindHandleAtPos(obs_scene_t *scene, obs_sceneitem_t *item,
 	TestHandle(0.0f, 1.0f, ItemHandle::BottomLeft);
 	TestHandle(0.5f, 1.0f, ItemHandle::BottomCenter);
 	TestHandle(1.0f, 1.0f, ItemHandle::BottomRight);
+
+	vec2 rotHandleOffset;
+	vec2_set(&rotHandleOffset, 0.0f,
+		 HANDLE_RADIUS * data.radius * 1.5 - data.radius);
+	RotatePos(&rotHandleOffset, atan2(transform.x.y, transform.x.x));
+	RotatePos(&rotHandleOffset, RAD(data.angleOffset));
+
+	vec3 handlePos = GetTransformedPos(0.5f, 0.0f, transform);
+	vec3_transform(&handlePos, &handlePos, &data.parent_xform);
+	handlePos.x -= rotHandleOffset.x;
+	handlePos.y -= rotHandleOffset.y;
+
+	float dist = vec3_dist(&handlePos, &pos3);
+	if (dist < data.radius) {
+		if (dist < closestHandle) {
+			closestHandle = dist;
+			data.item = item;
+			data.angle = obs_sceneitem_get_rot(item);
+			data.handle = ItemHandle::Rot;
+
+			vec2_set(&data.rotatePoint,
+				 transform.t.x + transform.x.x / 2 +
+					 transform.y.x / 2,
+				 transform.t.y + transform.x.y / 2 +
+					 transform.y.y / 2);
+
+			obs_sceneitem_get_pos(item, &data.offsetPoint);
+			data.offsetPoint.x -= data.rotatePoint.x;
+			data.offsetPoint.y -= data.rotatePoint.y;
+
+			RotatePos(&data.offsetPoint,
+				  -RAD(obs_sceneitem_get_rot(item)));
+		}
+	}
 
 	UNUSED_PARAMETER(scene);
 	return true;
@@ -403,6 +466,10 @@ void OBSBasicPreview::GetStretchHandleData(const vec2 &pos, bool ignoreGroup)
 
 	stretchItem = std::move(data.item);
 	stretchHandle = data.handle;
+
+	rotateAngle = data.angle;
+	rotatePoint = data.rotatePoint;
+	offsetPoint = data.offsetPoint;
 
 	if (stretchHandle != ItemHandle::None) {
 		matrix4 boxTransform;
@@ -583,7 +650,7 @@ void OBSBasicPreview::UpdateCursor(uint32_t &flags)
 		return;
 	}
 
-	if (!flags && cursor().shape() != Qt::OpenHandCursor)
+	if (!flags && (cursor().shape() != Qt::OpenHandCursor || !scrollMode))
 		unsetCursor();
 	if (cursor().shape() != Qt::ArrowCursor)
 		return;
@@ -598,6 +665,8 @@ void OBSBasicPreview::UpdateCursor(uint32_t &flags)
 		setCursor(Qt::SizeHorCursor);
 	else if (flags & ITEM_TOP || flags & ITEM_BOTTOM)
 		setCursor(Qt::SizeVerCursor);
+	else if (flags & ITEM_ROT)
+		setCursor(Qt::OpenHandCursor);
 }
 
 static bool select_one(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
@@ -1461,8 +1530,58 @@ void OBSBasicPreview::StretchItem(const vec2 &pos)
 	obs_sceneitem_set_pos(stretchItem, &newPos);
 }
 
+void OBSBasicPreview::RotateItem(const vec2 &pos)
+{
+	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
+	OBSScene scene = main->GetCurrentScene();
+	Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
+	bool shiftDown = (modifiers & Qt::ShiftModifier);
+	bool ctrlDown = (modifiers & Qt::ControlModifier);
+
+	vec2 pos2;
+	vec2_copy(&pos2, &pos);
+
+	float angle =
+		atan2(pos2.y - rotatePoint.y, pos2.x - rotatePoint.x) + RAD(90);
+
+#define ROT_SNAP(rot, thresh)                      \
+	if (abs(angle - RAD(rot)) < RAD(thresh)) { \
+		angle = RAD(rot);                  \
+	}
+
+	if (shiftDown) {
+		for (int i = 0; i <= 360 / 15; i++) {
+			ROT_SNAP(i * 15 - 90, 7.5);
+		}
+	} else if (!ctrlDown) {
+		ROT_SNAP(rotateAngle, 5)
+
+		ROT_SNAP(-90, 5)
+		ROT_SNAP(-45, 5)
+		ROT_SNAP(0, 5)
+		ROT_SNAP(45, 5)
+		ROT_SNAP(90, 5)
+		ROT_SNAP(135, 5)
+		ROT_SNAP(180, 5)
+		ROT_SNAP(225, 5)
+		ROT_SNAP(270, 5)
+		ROT_SNAP(315, 5)
+	}
+#undef ROT_SNAP
+
+	vec2 pos3;
+	vec2_copy(&pos3, &offsetPoint);
+	RotatePos(&pos3, angle);
+	pos3.x += rotatePoint.x;
+	pos3.y += rotatePoint.y;
+
+	obs_sceneitem_set_rot(stretchItem, DEG(angle));
+	obs_sceneitem_set_pos(stretchItem, &pos3);
+}
+
 void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 {
+	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	changed = true;
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -1471,9 +1590,11 @@ void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 	QPointF qtPos = event->localPos();
 #endif
 
+	float pixelRatio = main->devicePixelRatioF();
+
 	if (scrollMode && event->buttons() == Qt::LeftButton) {
-		scrollingOffset.x += qtPos.x() - scrollingFrom.x;
-		scrollingOffset.y += qtPos.y() - scrollingFrom.y;
+		scrollingOffset.x += pixelRatio * (qtPos.x() - scrollingFrom.x);
+		scrollingOffset.y += pixelRatio * (qtPos.y() - scrollingFrom.y);
 		scrollingFrom.x = qtPos.x();
 		scrollingFrom.y = qtPos.y();
 		emit DisplayResized();
@@ -1503,8 +1624,6 @@ void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 
 			selectionBox = false;
 
-			OBSBasic *main = reinterpret_cast<OBSBasic *>(
-				App()->GetMainWindow());
 			OBSScene scene = main->GetCurrentScene();
 			obs_sceneitem_t *group =
 				obs_sceneitem_get_group(scene, stretchItem);
@@ -1517,7 +1636,10 @@ void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 				pos.y = group_pos.y;
 			}
 
-			if (cropping)
+			if (stretchHandle == ItemHandle::Rot) {
+				RotateItem(pos);
+				setCursor(Qt::ClosedHandCursor);
+			} else if (cropping)
 				CropItem(pos);
 			else
 				StretchItem(pos);
@@ -1570,25 +1692,6 @@ void OBSBasicPreview::leaveEvent(QEvent *)
 		hoveredPreviewItems.clear();
 }
 
-static void DrawSquareAtPos(float x, float y)
-{
-	struct vec3 pos;
-	vec3_set(&pos, x, y, 0.0f);
-
-	struct matrix4 matrix;
-	gs_matrix_get(&matrix);
-	vec3_transform(&pos, &pos, &matrix);
-
-	gs_matrix_push();
-	gs_matrix_identity();
-	gs_matrix_translate(&pos);
-
-	gs_matrix_translate3f(-HANDLE_RADIUS, -HANDLE_RADIUS, 0.0f);
-	gs_matrix_scale3f(HANDLE_RADIUS * 2, HANDLE_RADIUS * 2, 1.0f);
-	gs_draw(GS_TRISTRIP, 0, 0);
-	gs_matrix_pop();
-}
-
 static void DrawLine(float x1, float y1, float x2, float y2, float thickness,
 		     vec2 scale)
 {
@@ -1600,15 +1703,135 @@ static void DrawLine(float x1, float y1, float x2, float y2, float thickness,
 	gs_vertex2f(x1, y1);
 	gs_vertex2f(x1 + (xSide * (thickness / scale.x)),
 		    y1 + (ySide * (thickness / scale.y)));
-	gs_vertex2f(x2, y2);
 	gs_vertex2f(x2 + (xSide * (thickness / scale.x)),
 		    y2 + (ySide * (thickness / scale.y)));
+	gs_vertex2f(x2, y2);
+	gs_vertex2f(x1, y1);
 
 	gs_vertbuffer_t *line = gs_render_save();
 
 	gs_load_vertexbuffer(line);
 	gs_draw(GS_TRISTRIP, 0, 0);
 	gs_vertexbuffer_destroy(line);
+}
+
+static void DrawSquareAtPos(float x, float y)
+{
+	OBSBasic *main = OBSBasic::Get();
+
+	float pixelRatio = main->devicePixelRatioF();
+
+	struct vec3 pos;
+	vec3_set(&pos, x, y, 0.0f);
+
+	struct matrix4 matrix;
+	gs_matrix_get(&matrix);
+	vec3_transform(&pos, &pos, &matrix);
+
+	gs_matrix_push();
+	gs_matrix_identity();
+	gs_matrix_translate(&pos);
+
+	gs_matrix_translate3f(-HANDLE_RADIUS * pixelRatio,
+			      -HANDLE_RADIUS * pixelRatio, 0.0f);
+	gs_matrix_scale3f(HANDLE_RADIUS * pixelRatio * 2,
+			  HANDLE_RADIUS * pixelRatio * 2, 1.0f);
+	gs_draw(GS_TRISTRIP, 0, 0);
+
+	gs_matrix_pop();
+}
+
+static void DrawRotationHandle(gs_vertbuffer_t *circle, float rot)
+{
+	OBSBasic *main = OBSBasic::Get();
+
+	float pixelRatio = main->devicePixelRatioF();
+
+	struct vec3 pos;
+	vec3_set(&pos, 0.5f, 0.0f, 0.0f);
+
+	struct matrix4 matrix;
+	gs_matrix_get(&matrix);
+	vec3_transform(&pos, &pos, &matrix);
+
+	gs_render_start(true);
+
+	gs_vertex2f(0.5f - 0.34f / HANDLE_RADIUS, 0.5f);
+	gs_vertex2f(0.5f - 0.34f / HANDLE_RADIUS, -2.0f);
+	gs_vertex2f(0.5f + 0.34f / HANDLE_RADIUS, -2.0f);
+	gs_vertex2f(0.5f + 0.34f / HANDLE_RADIUS, 0.5f);
+	gs_vertex2f(0.5f - 0.34f / HANDLE_RADIUS, 0.5f);
+
+	gs_vertbuffer_t *line = gs_render_save();
+
+	gs_load_vertexbuffer(line);
+
+	gs_matrix_push();
+	gs_matrix_identity();
+	gs_matrix_translate(&pos);
+
+	gs_matrix_rotaa4f(0.0f, 0.0f, 1.0f, RAD(rot));
+	gs_matrix_translate3f(-HANDLE_RADIUS * 1.5 * pixelRatio,
+			      -HANDLE_RADIUS * 1.5 * pixelRatio, 0.0f);
+	gs_matrix_scale3f(HANDLE_RADIUS * 3 * pixelRatio,
+			  HANDLE_RADIUS * 3 * pixelRatio, 1.0f);
+
+	gs_draw(GS_TRISTRIP, 0, 0);
+
+	gs_matrix_translate3f(0.0f, -HANDLE_RADIUS * 2 / 3, 0.0f);
+
+	gs_load_vertexbuffer(circle);
+	gs_draw(GS_TRISTRIP, 0, 0);
+
+	gs_matrix_pop();
+	gs_vertexbuffer_destroy(line);
+}
+
+static void DrawStripedLine(float x1, float y1, float x2, float y2,
+			    float thickness, vec2 scale)
+{
+	float ySide = (y1 == y2) ? (y1 < 0.5f ? 1.0f : -1.0f) : 0.0f;
+	float xSide = (x1 == x2) ? (x1 < 0.5f ? 1.0f : -1.0f) : 0.0f;
+
+	float dist =
+		sqrt(pow((x1 - x2) * scale.x, 2) + pow((y1 - y2) * scale.y, 2));
+	float offX = (x2 - x1) / dist;
+	float offY = (y2 - y1) / dist;
+
+	for (int i = 0, l = ceil(dist / 15); i < l; i++) {
+		gs_render_start(true);
+
+		float xx1 = x1 + i * 15 * offX;
+		float yy1 = y1 + i * 15 * offY;
+
+		float dx;
+		float dy;
+
+		if (x1 < x2) {
+			dx = std::min(xx1 + 7.5f * offX, x2);
+		} else {
+			dx = std::max(xx1 + 7.5f * offX, x2);
+		}
+
+		if (y1 < y2) {
+			dy = std::min(yy1 + 7.5f * offY, y2);
+		} else {
+			dy = std::max(yy1 + 7.5f * offY, y2);
+		}
+
+		gs_vertex2f(xx1, yy1);
+		gs_vertex2f(xx1 + (xSide * (thickness / scale.x)),
+			    yy1 + (ySide * (thickness / scale.y)));
+		gs_vertex2f(dx, dy);
+		gs_vertex2f(dx + (xSide * (thickness / scale.x)),
+			    dy + (ySide * (thickness / scale.y)));
+
+		gs_vertbuffer_t *line = gs_render_save();
+
+		gs_load_vertexbuffer(line);
+		gs_draw(GS_TRISTRIP, 0, 0);
+		gs_vertexbuffer_destroy(line);
+	}
 }
 
 static void DrawRect(float thickness, vec2 scale)
@@ -1741,18 +1964,27 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 	if (!SceneItemHasVideo(item))
 		return true;
 
+	OBSBasicPreview *prev = reinterpret_cast<OBSBasicPreview *>(param);
+
 	if (obs_sceneitem_is_group(item)) {
 		matrix4 mat;
+		obs_transform_info groupInfo;
 		obs_sceneitem_get_draw_transform(item, &mat);
+		obs_sceneitem_get_info(item, &groupInfo);
+
+		prev->groupRot = groupInfo.rot;
 
 		gs_matrix_push();
 		gs_matrix_mul(&mat);
-		obs_sceneitem_group_enum_items(item, DrawSelectedItem, param);
+		obs_sceneitem_group_enum_items(item, DrawSelectedItem, prev);
 		gs_matrix_pop();
+
+		prev->groupRot = 0.0f;
 	}
 
-	OBSBasicPreview *prev = reinterpret_cast<OBSBasicPreview *>(param);
 	OBSBasic *main = OBSBasic::Get();
+
+	float pixelRatio = main->devicePixelRatioF();
 
 	bool hovered = false;
 	{
@@ -1782,13 +2014,22 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 		{{{1.f, 1.f, 0.f}}},
 	};
 
+	main->GetCameraIcon();
+
+	QColor selColor = main->GetSelectionColor();
+	QColor cropColor = main->GetCropColor();
+	QColor hoverColor = main->GetHoverColor();
+
 	vec4 red;
 	vec4 green;
 	vec4 blue;
 
-	vec4_set(&red, 1.0f, 0.0f, 0.0f, 1.0f);
-	vec4_set(&green, 0.0f, 1.0f, 0.0f, 1.0f);
-	vec4_set(&blue, 0.0f, 0.5f, 1.0f, 1.0f);
+	vec4_set(&red, selColor.redF(), selColor.greenF(), selColor.blueF(),
+		 1.0f);
+	vec4_set(&green, cropColor.redF(), cropColor.greenF(),
+		 cropColor.blueF(), 1.0f);
+	vec4_set(&blue, hoverColor.redF(), hoverColor.greenF(),
+		 hoverColor.blueF(), 1.0f);
 
 	bool visible = std::all_of(
 		std::begin(bounds), std::end(bounds), [&](const vec3 &b) {
@@ -1822,13 +2063,22 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 	gs_effect_t *eff = gs_get_effect();
 	gs_eparam_t *colParam = gs_effect_get_param_by_name(eff, "color");
 
+	gs_effect_set_vec4(colParam, &red);
+
 	if (info.bounds_type == OBS_BOUNDS_NONE && crop_enabled(&crop)) {
-#define DRAW_SIDE(side, x1, y1, x2, y2)                        \
-	if (hovered && !selected)                              \
-		gs_effect_set_vec4(colParam, &blue);           \
-	else if (crop.side > 0)                                \
-		gs_effect_set_vec4(colParam, &green);          \
-	DrawLine(x1, y1, x2, y2, HANDLE_RADIUS / 2, boxScale); \
+#define DRAW_SIDE(side, x1, y1, x2, y2)                                        \
+	if (hovered && !selected) {                                            \
+		gs_effect_set_vec4(colParam, &blue);                           \
+		DrawLine(x1, y1, x2, y2, HANDLE_RADIUS *pixelRatio / 2,        \
+			 boxScale);                                            \
+	} else if (crop.side > 0) {                                            \
+		gs_effect_set_vec4(colParam, &green);                          \
+		DrawStripedLine(x1, y1, x2, y2, HANDLE_RADIUS *pixelRatio / 2, \
+				boxScale);                                     \
+	} else {                                                               \
+		DrawLine(x1, y1, x2, y2, HANDLE_RADIUS *pixelRatio / 2,        \
+			 boxScale);                                            \
+	}                                                                      \
 	gs_effect_set_vec4(colParam, &red);
 
 		DRAW_SIDE(left, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -1839,9 +2089,9 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 	} else {
 		if (!selected) {
 			gs_effect_set_vec4(colParam, &blue);
-			DrawRect(HANDLE_RADIUS / 2, boxScale);
+			DrawRect(HANDLE_RADIUS * pixelRatio / 2, boxScale);
 		} else {
-			DrawRect(HANDLE_RADIUS / 2, boxScale);
+			DrawRect(HANDLE_RADIUS * pixelRatio / 2, boxScale);
 		}
 	}
 
@@ -1857,6 +2107,24 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 		DrawSquareAtPos(0.0f, 0.5f);
 		DrawSquareAtPos(0.5f, 1.0f);
 		DrawSquareAtPos(1.0f, 0.5f);
+
+		if (!prev->circleFill) {
+			gs_render_start(true);
+
+			float angle = 180;
+			for (int i = 0, l = 40; i < l; i++) {
+				gs_vertex2f(sin(RAD(angle)) / 2 + 0.5f,
+					    cos(RAD(angle)) / 2 + 0.5f);
+				angle += 360 / l;
+				gs_vertex2f(sin(RAD(angle)) / 2 + 0.5f,
+					    cos(RAD(angle)) / 2 + 0.5f);
+				gs_vertex2f(0.5f, 1.0f);
+			}
+
+			prev->circleFill = gs_render_save();
+		}
+
+		DrawRotationHandle(prev->circleFill, info.rot + prev->groupRot);
 	}
 
 	gs_matrix_pop();
@@ -1870,6 +2138,10 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *scene,
 bool OBSBasicPreview::DrawSelectionBox(float x1, float y1, float x2, float y2,
 				       gs_vertbuffer_t *rectFill)
 {
+	OBSBasic *main = OBSBasic::Get();
+
+	float pixelRatio = main->devicePixelRatioF();
+
 	x1 = std::round(x1);
 	x2 = std::round(x2);
 	y1 = std::round(y1);
@@ -1898,7 +2170,7 @@ bool OBSBasicPreview::DrawSelectionBox(float x1, float y1, float x2, float y2,
 	gs_draw(GS_TRISTRIP, 0, 0);
 
 	gs_effect_set_vec4(colParam, &borderColor);
-	DrawRect(HANDLE_RADIUS / 2, scale);
+	DrawRect(HANDLE_RADIUS * pixelRatio / 2, scale);
 
 	gs_matrix_pop();
 
@@ -1951,10 +2223,6 @@ void OBSBasicPreview::DrawSceneEditing()
 
 	gs_effect_t *solid = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_technique_t *tech = gs_effect_get_technique(solid, "Solid");
-
-	vec4 color;
-	vec4_set(&color, 1.0f, 0.0f, 0.0f, 1.0f);
-	gs_effect_set_vec4(gs_effect_get_param_by_name(solid, "color"), &color);
 
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
