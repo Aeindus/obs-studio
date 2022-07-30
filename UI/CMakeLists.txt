@@ -365,14 +365,6 @@ if(OS_WINDOWS)
 
   add_subdirectory(win-update/updater)
 
-  add_custom_command(
-          TARGET obs POST_BUILD
-          COMMAND "${CMAKE_COMMAND}" -E copy
-                  ${CMAKE_SOURCE_DIR}/restore_and_run.bat
-                  ${OBS_OUTPUT_DIR}/$<CONFIG>/restore_and_run.bat
-          COMMENT "Installing restore_and_run script"
-          VERBATIM)
-
 elseif(OS_MACOS)
   set_target_properties(
     obs

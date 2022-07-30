@@ -69,6 +69,15 @@ endif()
 setup_obs_project()
 mark_as_advanced(BUILD_TESTS USE_LIBCXX)
 
+# Install custom run script when building and for the final packaging
+install(
+  FILES ${CMAKE_SOURCE_DIR}/restore_and_run.bat
+  DESTINATION ".")
+install(
+  FILES ${CMAKE_SOURCE_DIR}/restore_and_run.bat
+  DESTINATION ${OBS_OUTPUT_DIR}/$<CONFIG>
+  COMPONENT obs_rundir)
+
 if(INSTALLER_RUN)
   generate_multiarch_installer()
   return()
