@@ -110,7 +110,7 @@ jobs:
 
   windows_package:
     name: '03 - Windows Installer'
-    runs-on: [windows-latest]
+    runs-on: [windows-2019]
     needs: [windows_build]
     if: ${{ startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request' }}
     env:
@@ -159,58 +159,8 @@ jobs:
           name: 'obs-studio-windows-installer'
           path: '${{ steps.unpack.outputs.filename }}'
 
-  windows_debug_package:
-    name: '03 - Windows Installer'
-    runs-on: [windows-latest]
-    needs: [windows_build]
-    if: always()
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v3
-
-      - name: Setup Environment
-        id: setup
-        run: |
-          $CommitHash = git rev-parse --short=9 HEAD
-          Write-Output "::set-output name=commitHash::${CommitHash}"
-
-      - name: 'Add msbuild to PATH'
-        uses: microsoft/setup-msbuild@v1.1
-
-      - name: 'Download 64-bit artifact'
-        uses: actions/download-artifact@v3
-        with:
-          name: 'obs-studio-windows-x64-${{ steps.setup.outputs.commitHash }}'
-
-      - name: 'Download 32-bit artifact'
-        uses: actions/download-artifact@v3
-        with:
-          name: 'obs-studio-windows-x86-${{ steps.setup.outputs.commitHash }}'
-
-      - name: 'Unpack Windows build artifacts'
-        id: unpack
-        run: |
-          if (!(Test-Path install_temp)) {
-            $null = New-Item -ItemType Directory -Force -Path install_temp
-          }
-
-          Expand-Archive -Path "$(Get-ChildItem -filter "obs-studio-*-windows-x86.zip" -File)" -DestinationPath install_temp
-          Expand-Archive -Path "$(Get-ChildItem -filter "obs-studio-*-windows-x64.zip" -File)" -Force -DestinationPath install_temp
-
-          CI/windows/04_package_obs_static_version.ps1 -CombinedArchs -Package -Version "30.0.0"
-
-          $ArtifactName = (Get-ChildItem -filter "obs-studio-*-windows-x86+x64.zip" -File).Name
-          Write-Output "::set-output name=filename::${ArtifactName}"
-
-      - name: 'Upload build artifact'
-        uses: actions/upload-artifact@v3
-        with:
-          name: 'obs-studio-windows-installer'
-          path: '${{ steps.unpack.outputs.filename }}'
-      
       - name: "Automatic Release"
         uses: marvinpinto/action-automatic-releases@latest
         with:
-          automatic_release_tag: "latest"
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: '${{ steps.unpack.outputs.filename }}'

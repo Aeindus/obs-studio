@@ -25,12 +25,6 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OBS::libobs OBS::frontend-api Dwmapi.lib)
 
-set_target_properties(
-  ${PROJECT_NAME}
-  PROPERTIES AUTOMOC ON
-             AUTOUIC ON
-             AUTORCC ON)
-
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
 
