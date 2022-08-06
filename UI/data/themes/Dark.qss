@@ -28,6 +28,10 @@
 /* rgb(11,10,11); /* veryVeryDark */
 /* rgb(42,130,218); /* blue */
 
+OBSThemeMeta {
+    dark: 'true';
+    author: 'Warchamp7';
+}
 
 /* Custom theme information.  This will set the application's QPalette, as
  * well as pass to QML via the OBSTheme object.
@@ -245,11 +249,26 @@ QToolBar {
     border: none;
 }
 
+QPushButton[toolButton="true"],
+QToolButton {
+	background: transparent;
+	border: none;
+    padding: 1px;
+    margin: 1px;
+}
+
+QPushButton[toolButton="true"]:last-child,
+QToolButton:last-child {
+    margin-right: 0px;
+}
+
+QPushButton[toolButton="true"]:hover,
 QToolButton:hover {
     background-color: rgb(122,121,122); /* light */
     border-radius: none;
 }
 
+QPushButton[toolButton="true"]:pressed,
 QToolButton:pressed {
     background-color: palette(base);
     border-radius: none;
@@ -289,6 +308,10 @@ QToolButton:pressed {
 
 * [themeID="menuIconSmall"] {
     qproperty-icon: url(./Dark/dots-vert.svg);
+}
+
+* [themeID="cogsIcon"] {
+    qproperty-icon: url(./Dark/cogs.svg);
 }
 
 /* Tab Widget */

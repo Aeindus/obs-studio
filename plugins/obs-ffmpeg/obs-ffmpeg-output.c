@@ -28,30 +28,6 @@
 #include <libavutil/channel_layout.h>
 #include <libavutil/mastering_display_metadata.h>
 
-struct ffmpeg_output {
-	obs_output_t *output;
-	volatile bool active;
-	struct ffmpeg_data ff_data;
-
-	bool connecting;
-	pthread_t start_thread;
-
-	uint64_t total_bytes;
-
-	uint64_t audio_start_ts;
-	uint64_t video_start_ts;
-	uint64_t stop_ts;
-	volatile bool stopping;
-
-	bool write_thread_active;
-	pthread_mutex_t write_mutex;
-	pthread_t write_thread;
-	os_sem_t *write_sem;
-	os_event_t *stop_event;
-
-	DARRAY(AVPacket *) packets;
-};
-
 /* ------------------------------------------------------------------------- */
 
 static void ffmpeg_output_set_last_error(struct ffmpeg_data *data,
@@ -176,6 +152,10 @@ static bool open_video_codec(struct ffmpeg_data *data)
 	data->vframe->color_primaries = data->config.color_primaries;
 	data->vframe->color_trc = data->config.color_trc;
 	data->vframe->colorspace = data->config.colorspace;
+	data->vframe->chroma_location =
+		(data->config.colorspace == AVCOL_SPC_BT2020_NCL)
+			? AVCHROMA_LOC_TOPLEFT
+			: AVCHROMA_LOC_LEFT;
 
 	ret = av_frame_get_buffer(data->vframe, base_get_alignment());
 	if (ret < 0) {
@@ -282,6 +262,10 @@ static bool create_video_stream(struct ffmpeg_data *data)
 	context->color_primaries = data->config.color_primaries;
 	context->color_trc = data->config.color_trc;
 	context->colorspace = data->config.colorspace;
+	context->chroma_sample_location =
+		(data->config.colorspace == AVCOL_SPC_BT2020_NCL)
+			? AVCHROMA_LOC_TOPLEFT
+			: AVCHROMA_LOC_LEFT;
 	context->thread_count = 0;
 
 	data->video->time_base = context->time_base;

@@ -19,6 +19,11 @@
 
 /* Colors */
 
+OBSThemeMeta {
+    dark: 'true';
+    author: 'Warchamp7';
+}
+
 /* Custom theme information.  This will set the application's QPalette, as
  * well as pass to QML via the OBSTheme object.
  * Can also use OBSTheme::disabled, OBSTheme::active, and OBSTheme::inactive.
@@ -77,6 +82,7 @@ QWidget {
     selection-background-color: rgb(40,76,184);
     selection-color: palette(text);
     font-size: 10pt;
+    font-family: 'Open Sans', Helvetica, Arial, 'MS Shell Dlg', sans-serif
 }
 
 QWidget:disabled {
@@ -408,6 +414,7 @@ QToolBar {
     margin: 4px 0px;
 }
 
+QPushButton[toolButton="true"],
 QToolButton {
     background-color: rgb(60,64,75);
     padding: 4px 6px;
@@ -415,6 +422,7 @@ QToolButton {
     border-radius: 2px;
 }
 
+QPushButton[toolButton="true"]:last-child,
 QToolButton:last-child {
     margin-right: 0px;
 }
@@ -449,6 +457,10 @@ QToolButton:pressed {
 
 * [themeID="refreshIconSmall"] {
     qproperty-icon: url(./Dark/refresh.svg);
+}
+
+* [themeID="cogsIcon"] {
+    qproperty-icon: url(./Dark/cogs.svg);
 }
 
 #sourceInteractButton {
@@ -1041,7 +1053,8 @@ QGroupBox::indicator {
 	margin-left: 2px;
 }
 
-QCheckBox::indicator:unchecked {
+QCheckBox::indicator:unchecked,
+QGroupBox::indicator:unchecked {
 	image: url(./Yami/checkbox_unchecked.svg);
 }
 
@@ -1051,7 +1064,8 @@ QGroupBox::indicator:unchecked:hover {
 	image: url(./Yami/checkbox_unchecked_focus.svg);
 }
 
-QCheckBox::indicator:checked {
+QCheckBox::indicator:checked,
+QGroupBox::indicator:checked {
 	image: url(./Yami/checkbox_checked.svg);
 }
 

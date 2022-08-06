@@ -43,6 +43,9 @@
 #include "log-viewer.hpp"
 #include "slider-ignorewheel.hpp"
 #include "window-basic-main.hpp"
+#ifdef __APPLE__
+#include "window-permissions.hpp"
+#endif
 #include "window-basic-settings.hpp"
 #include "crash-report.hpp"
 #include "platform.hpp"
@@ -451,6 +454,8 @@ bool OBSApp::InitGlobalConfigDefaults()
 				false);
 	config_set_default_double(globalConfig, "BasicWindow", "SnapDistance",
 				  10.0);
+	config_set_default_bool(globalConfig, "BasicWindow",
+				"SpacingHelpersEnabled", true);
 	config_set_default_bool(globalConfig, "BasicWindow",
 				"RecordWhenStreaming", false);
 	config_set_default_bool(globalConfig, "BasicWindow",
@@ -1095,10 +1100,72 @@ void OBSApp::ParseExtraThemeData(const char *path)
 	setPalette(pal);
 }
 
-bool OBSApp::SetTheme(std::string name, std::string path)
+OBSThemeMeta *OBSApp::ParseThemeMeta(const char *path)
 {
-	theme = name;
+	BPtr<char> data = os_quick_read_utf8_file(path);
+	CFParser cfp;
+	int ret;
 
+	if (!cf_parser_parse(cfp, data, path))
+		return nullptr;
+
+	if (cf_token_is(cfp, "OBSThemeMeta") ||
+	    cf_go_to_token(cfp, "OBSThemeMeta", nullptr)) {
+		OBSThemeMeta *meta = new OBSThemeMeta();
+		if (!cf_next_token(cfp))
+			return nullptr;
+
+		if (!cf_token_is(cfp, "{"))
+			return nullptr;
+
+		for (;;) {
+			if (!cf_next_token(cfp))
+				return nullptr;
+
+			ret = cf_token_is_type(cfp, CFTOKEN_NAME, "name",
+					       nullptr);
+			if (ret != PARSE_SUCCESS)
+				break;
+
+			DStr name;
+			dstr_copy_strref(name, &cfp->cur_token->str);
+
+			ret = cf_next_token_should_be(cfp, ":", ";", nullptr);
+			if (ret != PARSE_SUCCESS)
+				continue;
+
+			if (!cf_next_token(cfp))
+				return nullptr;
+
+			ret = cf_token_is_type(cfp, CFTOKEN_STRING, "value",
+					       ";");
+
+			if (ret != PARSE_SUCCESS)
+				continue;
+
+			char *str;
+			str = cf_literal_to_str(cfp->cur_token->str.array,
+						cfp->cur_token->str.len);
+
+			if (strcmp(name->array, "dark") == 0 && str) {
+				meta->dark = strcmp(str, "true") == 0;
+			} else if (strcmp(name->array, "parent") == 0 && str) {
+				meta->parent = std::string(str);
+			} else if (strcmp(name->array, "author") == 0 && str) {
+				meta->author = std::string(str);
+			}
+			bfree(str);
+
+			if (!cf_go_to_token(cfp, ";", nullptr))
+				return nullptr;
+		}
+		return meta;
+	}
+	return nullptr;
+}
+
+std::string OBSApp::GetTheme(std::string name, std::string path)
+{
 	/* Check user dir first, then preinstalled themes. */
 	if (path == "") {
 		char userDir[512];
@@ -1110,18 +1177,59 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 			path = string(userDir);
 		} else if (!GetDataFilePath(name.c_str(), path)) {
 			OBSErrorBox(NULL, "Failed to find %s.", name.c_str());
-			return false;
+			return "";
 		}
 	}
+	return path;
+}
+
+std::string OBSApp::SetParentTheme(std::string name)
+{
+	string path = GetTheme(name.c_str(), "");
+	if (path.empty())
+		return path;
 
 	setStyleSheet(defaultStyleSheet);
-	QString mpath = QString("file:///") + path.c_str();
 	setPalette(defaultPalette);
+
+	QString mpath = QString("file:///") + path.c_str();
+	ParseExtraThemeData(path.c_str());
+	return path;
+}
+
+bool OBSApp::SetTheme(std::string name, std::string path)
+{
+	theme = name;
+
+	path = GetTheme(name, path);
+	if (path.empty())
+		return false;
+
+	themeMeta = ParseThemeMeta(path.c_str());
+	string parentPath;
+
+	if (themeMeta && !themeMeta->parent.empty()) {
+		parentPath = SetParentTheme(themeMeta->parent);
+	}
+
+	string lpath = path;
+	if (parentPath.empty()) {
+		setStyleSheet(defaultStyleSheet);
+		setPalette(defaultPalette);
+	} else {
+		lpath = parentPath;
+	}
+
+	QString mpath = QString("file:///") + lpath.c_str();
 	ParseExtraThemeData(path.c_str());
 	setStyle(new OBSIgnoreWheelProxyStyle);
 	setStyleSheet(mpath);
-	QColor color = palette().text().color();
-	themeDarkMode = !(color.redF() < 0.5);
+	if (themeMeta) {
+		themeDarkMode = themeMeta->dark;
+	} else {
+		QColor color = palette().text().color();
+		themeDarkMode = !(color.redF() < 0.5);
+	}
 
 	emit StyleChanged();
 	return true;
@@ -2086,6 +2194,11 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 	OBSApp program(argc, argv, profilerNameStore.get());
 	try {
 		QAccessible::installFactory(accessibleFactory);
+		QFontDatabase::addApplicationFont(
+			":/fonts/OpenSans-Regular.ttf");
+		QFontDatabase::addApplicationFont(":/fonts/OpenSans-Bold.ttf");
+		QFontDatabase::addApplicationFont(
+			":/fonts/OpenSans-Italic.ttf");
 
 		bool created_log = false;
 
@@ -2178,6 +2291,17 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 			CheckPermission(kAccessibility);
 		MacPermissionStatus screen_permission =
 			CheckPermission(kScreenCapture);
+
+		int permissionsDialogLastShown =
+			config_get_int(GetGlobalConfig(), "General",
+				       "MacOSPermissionsDialogLastShown");
+		if (permissionsDialogLastShown <
+		    MACOS_PERMISSIONS_DIALOG_VERSION) {
+			OBSPermissions *check = new OBSPermissions(
+				nullptr, screen_permission, video_permission,
+				audio_permission, accessibility_permission);
+			check->exec();
+		}
 
 		bool rosettaTranslated = os_get_emulation_status();
 		blog(LOG_INFO, "Rosetta translation used: %s",

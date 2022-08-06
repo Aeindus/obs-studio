@@ -633,6 +633,8 @@ static buf_t alloc_buf(amf_fallback *enc)
 		size = enc->linesize * enc->cy * 4;
 	} else if (enc->amf_format == AMF_SURFACE_P010) {
 		size = enc->linesize * enc->cy * 2 * 2;
+	} else {
+		throw "Invalid amf_format";
 	}
 
 	buf.resize(size);
@@ -682,12 +684,7 @@ try {
 	if (!enc->linesize)
 		enc->linesize = frame->linesize[0];
 
-	if (enc->available_buffers.size()) {
-		buf = std::move(enc->available_buffers.back());
-		enc->available_buffers.pop_back();
-	} else {
-		buf = alloc_buf(enc);
-	}
+	buf = get_buf(enc);
 
 	copy_frame_data(enc, buf, frame);
 
@@ -718,6 +715,11 @@ try {
 	amf_fallback *enc = (amf_fallback *)data;
 	error("%s: %s: %ls", __FUNCTION__, err.str,
 	      amf_trace->GetResultText(err.res));
+	*received_packet = false;
+	return false;
+} catch (const char *err) {
+	amf_fallback *enc = (amf_fallback *)data;
+	error("%s: %s", __FUNCTION__, err);
 	*received_packet = false;
 	return false;
 }
@@ -951,9 +953,10 @@ static obs_properties_t *amf_properties_internal(bool hevc)
 	obs_properties_add_int(props, "cqp", obs_module_text("NVENC.CQLevel"),
 			       1, 30, 1);
 
-	obs_properties_add_int(props, "keyint_sec",
-			       obs_module_text("KeyframeIntervalSec"), 0, 10,
-			       1);
+	p = obs_properties_add_int(props, "keyint_sec",
+				   obs_module_text("KeyframeIntervalSec"), 0,
+				   10, 1);
+	obs_property_int_set_suffix(p, " s");
 
 	p = obs_properties_add_list(props, "preset", obs_module_text("Preset"),
 				    OBS_COMBO_TYPE_LIST,
@@ -1436,16 +1439,10 @@ constexpr amf_uint16 amf_hdr_primary(uint32_t num, uint32_t den)
 }
 
 constexpr amf_uint32 lum_mul = 10000;
-constexpr float lum_mul_f = (float)lum_mul;
 
 constexpr amf_uint32 amf_make_lum(amf_uint32 val)
 {
 	return val * lum_mul;
-}
-
-static inline amf_uint32 amf_nominal_level()
-{
-	return (amf_uint32)(obs_get_video_hdr_nominal_peak_level() * lum_mul_f);
 }
 
 static void amf_hevc_create_internal(amf_base *enc, obs_data_t *settings)
@@ -1487,6 +1484,10 @@ static void amf_hevc_create_internal(amf_base *enc, obs_data_t *settings)
 	set_hevc_property(enc, NOMINAL_RANGE, enc->full_range);
 
 	if (is_hdr) {
+		const int hdr_nominal_peak_level =
+			pq ? (int)obs_get_video_hdr_nominal_peak_level()
+			   : (hlg ? 1000 : 0);
+
 		AMFBufferPtr buf;
 		enc->amf_context->AllocBuffer(AMF_MEMORY_HOST,
 					      sizeof(AMFHDRMetadata), &buf);
@@ -1500,10 +1501,10 @@ static void amf_hevc_create_internal(amf_base *enc, obs_data_t *settings)
 		md->whitePoint[0] = amf_hdr_primary(3127, 10000);
 		md->whitePoint[1] = amf_hdr_primary(329, 1000);
 		md->minMasteringLuminance = 0;
-		md->maxMasteringLuminance = pq ? amf_nominal_level()
-					       : (hlg ? amf_make_lum(1000) : 0);
-		md->maxContentLightLevel = 0;
-		md->maxFrameAverageLightLevel = 0;
+		md->maxMasteringLuminance =
+			amf_make_lum(hdr_nominal_peak_level);
+		md->maxContentLightLevel = hdr_nominal_peak_level;
+		md->maxFrameAverageLightLevel = hdr_nominal_peak_level;
 		set_hevc_property(enc, INPUT_HDR_METADATA, buf);
 	}
 
@@ -1604,10 +1605,15 @@ static void register_hevc()
 extern "C" void amf_load(void)
 try {
 	AMF_RESULT res;
+	HMODULE amf_module_test;
 
-	amf_module = LoadLibraryW(AMF_DLL_NAME);
-	if (!amf_module)
+	/* Check if the DLL is present before running the more expensive */
+	/* obs-amf-test.exe, but load it as data so it can't crash us    */
+	amf_module_test =
+		LoadLibraryExW(AMF_DLL_NAME, nullptr, LOAD_LIBRARY_AS_DATAFILE);
+	if (!amf_module_test)
 		throw "No AMF library";
+	FreeLibrary(amf_module_test);
 
 	/* ----------------------------------- */
 	/* Check for AVC/HEVC support          */
@@ -1668,6 +1674,10 @@ try {
 
 	/* ----------------------------------- */
 	/* Init AMF                            */
+
+	amf_module = LoadLibraryW(AMF_DLL_NAME);
+	if (!amf_module)
+		throw "AMF library failed to load";
 
 	AMFInit_Fn init =
 		(AMFInit_Fn)GetProcAddress(amf_module, AMF_INIT_FUNCTION_NAME);

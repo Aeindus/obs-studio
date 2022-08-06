@@ -185,6 +185,7 @@ class OBSBasic : public OBSMainWindow {
 	friend class DeviceToolbarPropertiesThread;
 	friend class OBSBasicSourceSelect;
 	friend class OBSYoutubeActions;
+	friend class OBSPermissions;
 	friend struct BasicOutputHandler;
 	friend struct OBSStudioAPI;
 
@@ -439,7 +440,7 @@ private:
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys,
 		replayBufHotkeys, vcamHotkeys, togglePreviewHotkeys,
 		contextBarHotkeys;
-	obs_hotkey_id forceStreamingStopHotkey;
+	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey;
 
 	void InitDefaultTransitions();
 	void InitTransition(obs_source_t *transition);
@@ -631,6 +632,11 @@ private:
 	QColor GetSelectionColor() const;
 	QColor GetCropColor() const;
 	QColor GetHoverColor() const;
+
+	void UpdatePreviewSpacingHelpers();
+	bool drawSpacingHelpers = true;
+
+	float GetDevicePixelRatio();
 
 public slots:
 	void DeferSaveBegin();
@@ -842,6 +848,8 @@ private:
 
 	OBSSource prevFTBSource = nullptr;
 
+	float dpi = 1.0;
+
 public:
 	OBSSource GetProgramSource();
 	OBSScene GetCurrentScene();
@@ -992,8 +1000,11 @@ private slots:
 	void on_actionShow_Recordings_triggered();
 	void on_actionRemux_triggered();
 	void on_action_Settings_triggered();
+	void on_actionShowMacPermissions_triggered();
 	void on_actionShowMissingFiles_triggered();
 	void on_actionAdvAudioProperties_triggered();
+	void on_actionMixerToolbarAdvAudio_triggered();
+	void on_actionMixerToolbarMenu_triggered();
 	void on_actionShowLogs_triggered();
 	void on_actionUploadCurrentLog_triggered();
 	void on_actionUploadLastLog_triggered();

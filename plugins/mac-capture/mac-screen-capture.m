@@ -445,6 +445,11 @@ static bool init_screen_stream(struct screen_capture *sc)
 			includingApplications:target_application_array
 			     exceptingWindows:[[NSArray alloc] init]];
 
+		if (@available(macOS 13.0, *))
+			[sc->stream_properties
+				setBackgroundColor:CGColorGetConstantColor(
+							   kCGColorClear)];
+
 		set_display_mode(sc, target_display);
 	} break;
 	}
@@ -542,7 +547,8 @@ bool init_vertbuf_screen_capture(struct screen_capture *sc)
 	return sc->vertbuf != NULL;
 }
 
-static void screen_capture_build_content_list(struct screen_capture *sc)
+static void screen_capture_build_content_list(struct screen_capture *sc,
+					      bool excludingDesktopWindows)
 {
 	typedef void (^shareable_content_callback)(SCShareableContent *,
 						   NSError *);
@@ -569,7 +575,7 @@ static void screen_capture_build_content_list(struct screen_capture *sc)
 	os_sem_wait(sc->shareable_content_available);
 	[sc->shareable_content release];
 	[SCShareableContent
-		getShareableContentExcludingDesktopWindows:true
+		getShareableContentExcludingDesktopWindows:excludingDesktopWindows
 				       onScreenWindowsOnly:!sc->show_hidden_windows
 					 completionHandler:new_content_received];
 }
@@ -584,9 +590,11 @@ static void *screen_capture_create(obs_data_t *settings, obs_source_t *source)
 	sc->show_hidden_windows =
 		obs_data_get_bool(settings, "show_hidden_windows");
 	sc->window = obs_data_get_int(settings, "window");
+	sc->capture_type = obs_data_get_int(settings, "type");
 
 	os_sem_init(&sc->shareable_content_available, 1);
-	screen_capture_build_content_list(sc);
+	screen_capture_build_content_list(
+		sc, sc->capture_type == ScreenCaptureWindowStream);
 
 	sc->capture_delegate = [[ScreenCaptureDelegate alloc] init];
 	sc->capture_delegate.sc = sc;
@@ -613,7 +621,6 @@ static void *screen_capture_create(obs_data_t *settings, obs_source_t *source)
 
 	obs_leave_graphics();
 
-	sc->capture_type = obs_data_get_int(settings, "type");
 	sc->display = obs_data_get_int(settings, "display");
 	sc->application_id = [[NSString alloc]
 		initWithUTF8String:obs_data_get_string(settings,
@@ -947,17 +954,6 @@ static bool build_application_list(struct screen_capture *sc,
 	return true;
 }
 
-static bool content_changed(struct screen_capture *sc, obs_properties_t *props)
-{
-	screen_capture_build_content_list(sc);
-
-	build_display_list(sc, props);
-	build_window_list(sc, props);
-	build_application_list(sc, props);
-
-	return true;
-}
-
 static bool content_settings_changed(void *data, obs_properties_t *props,
 				     obs_property_t *list
 				     __attribute__((unused)),
@@ -996,7 +992,7 @@ static bool content_settings_changed(void *data, obs_properties_t *props,
 			obs_property_set_visible(app_list, true);
 			obs_property_set_visible(window_list, false);
 			obs_property_set_visible(empty, false);
-			obs_property_set_visible(hidden, false);
+			obs_property_set_visible(hidden, true);
 			break;
 		}
 		}
@@ -1006,7 +1002,13 @@ static bool content_settings_changed(void *data, obs_properties_t *props,
 	sc->show_hidden_windows =
 		obs_data_get_bool(settings, "show_hidden_windows");
 
-	return content_changed(sc, props);
+	screen_capture_build_content_list(
+		sc, capture_type_id == ScreenCaptureWindowStream);
+	build_display_list(sc, props);
+	build_window_list(sc, props);
+	build_application_list(sc, props);
+
+	return true;
 }
 
 static obs_properties_t *screen_capture_properties(void *data)

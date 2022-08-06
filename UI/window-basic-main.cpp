@@ -53,6 +53,9 @@
 #include "window-basic-stats.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "window-log-reply.hpp"
+#ifdef __APPLE__
+#include "window-permissions.hpp"
+#endif
 #include "window-projector.hpp"
 #include "window-remux.hpp"
 #if YOUTUBE_ENABLED
@@ -316,7 +319,9 @@ OBSBasic::OBSBasic(QWidget *parent)
 			ResizePreview(ovi.base_width, ovi.base_height);
 
 		UpdateContextBarVisibility();
+		dpi = devicePixelRatioF();
 	};
+	dpi = devicePixelRatioF();
 
 	connect(windowHandle(), &QWindow::screenChanged, displayResize);
 	connect(ui->preview, &OBSQTDisplay::DisplayResized, displayResize);
@@ -369,6 +374,8 @@ OBSBasic::OBSBasic(QWidget *parent)
 
 	ui->actionCheckForUpdates->setMenuRole(QAction::AboutQtRole);
 	ui->action_Settings->setMenuRole(QAction::PreferencesRole);
+	ui->actionShowMacPermissions->setMenuRole(
+		QAction::ApplicationSpecificRole);
 	ui->actionE_xit->setMenuRole(QAction::QuitRole);
 #else
 	renameScene->setShortcut({Qt::Key_F2});
@@ -469,6 +476,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 		&OBSBasic::BroadcastButtonClicked);
 
 	UpdatePreviewSafeAreas();
+	UpdatePreviewSpacingHelpers();
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -575,6 +583,14 @@ void OBSBasic::copyActionsDynamicProperties()
 
 	for (QAction *x : ui->sourcesToolbar->actions()) {
 		QWidget *temp = ui->sourcesToolbar->widgetForAction(x);
+
+		for (QByteArray &y : x->dynamicPropertyNames()) {
+			temp->setProperty(y, x->property(y));
+		}
+	}
+
+	for (QAction *x : ui->mixerToolbar->actions()) {
+		QWidget *temp = ui->mixerToolbar->widgetForAction(x);
 
 		for (QByteArray &y : x->dynamicPropertyNames()) {
 			temp->setProperty(y, x->property(y));
@@ -2060,6 +2076,10 @@ void OBSBasic::OBSInit()
 	/* Remove OBS' Fullscreen Interface menu in favor of the one macOS adds by default */
 	delete ui->actionFullscreenInterface;
 	ui->actionFullscreenInterface = nullptr;
+#else
+	/* Don't show menu to raise macOS-only permissions dialog */
+	delete ui->actionShowMacPermissions;
+	ui->actionShowMacPermissions = nullptr;
 #endif
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -2071,6 +2091,7 @@ void OBSBasic::OBSInit()
 	}
 #endif
 
+	UpdatePreviewProgramIndicators();
 	OnFirstLoad();
 
 	activateWindow();
@@ -2452,6 +2473,15 @@ void OBSBasic::CreateHotkeys()
 	LoadHotkeyPair(pauseHotkeys, "OBSBasic.PauseRecording",
 		       "OBSBasic.UnpauseRecording");
 
+	splitFileHotkey = obs_hotkey_register_frontend(
+		"OBSBasic.SplitFile", Str("Basic.Main.SplitFile"),
+		[](void *, obs_hotkey_id, obs_hotkey_t *, bool pressed) {
+			if (pressed)
+				obs_frontend_recording_split_file();
+		},
+		this);
+	LoadHotkey(splitFileHotkey, "OBSBasic.SplitFile");
+
 	replayBufHotkeys = obs_hotkey_pair_register_frontend(
 		"OBSBasic.StartReplayBuffer",
 		Str("Basic.Main.StartReplayBuffer"),
@@ -2576,6 +2606,7 @@ void OBSBasic::ClearHotkeys()
 	obs_hotkey_pair_unregister(streamingHotkeys);
 	obs_hotkey_pair_unregister(recordingHotkeys);
 	obs_hotkey_pair_unregister(pauseHotkeys);
+	obs_hotkey_unregister(splitFileHotkey);
 	obs_hotkey_pair_unregister(replayBufHotkeys);
 	obs_hotkey_pair_unregister(vcamHotkeys);
 	obs_hotkey_pair_unregister(togglePreviewHotkeys);
@@ -4236,6 +4267,9 @@ void OBSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 		RenderSafeAreas(window->rightLine, targetCX, targetCY);
 	}
 
+	if (window->drawSpacingHelpers)
+		window->ui->preview->DrawSpacingHelpers();
+
 	/* --------------------------------------- */
 
 	gs_projection_pop();
@@ -4893,6 +4927,18 @@ void OBSBasic::on_action_Settings_triggered()
 	}
 }
 
+void OBSBasic::on_actionShowMacPermissions_triggered()
+{
+#ifdef __APPLE__
+	OBSPermissions *check =
+		new OBSPermissions(this, CheckPermission(kScreenCapture),
+				   CheckPermission(kVideoDeviceAccess),
+				   CheckPermission(kAudioDeviceAccess),
+				   CheckPermission(kAccessibility));
+	check->exec();
+#endif
+}
+
 void OBSBasic::ShowMissingFilesDialog(obs_missing_files_t *files)
 {
 	if (obs_missing_files_count(files) > 0) {
@@ -4944,6 +4990,31 @@ void OBSBasic::on_actionAdvAudioProperties_triggered()
 	advAudioWindow->show();
 	advAudioWindow->setAttribute(Qt::WA_DeleteOnClose, true);
 	advAudioWindow->SetIconsVisible(iconsVisible);
+}
+
+void OBSBasic::on_actionMixerToolbarAdvAudio_triggered()
+{
+	on_actionAdvAudioProperties_triggered();
+}
+
+void OBSBasic::on_actionMixerToolbarMenu_triggered()
+{
+	QAction unhideAllAction(QTStr("UnhideAll"), this);
+	connect(&unhideAllAction, &QAction::triggered, this,
+		&OBSBasic::UnhideAllAudioControls, Qt::DirectConnection);
+
+	QAction toggleControlLayoutAction(QTStr("VerticalLayout"), this);
+	toggleControlLayoutAction.setCheckable(true);
+	toggleControlLayoutAction.setChecked(config_get_bool(
+		GetGlobalConfig(), "BasicWindow", "VerticalVolControl"));
+	connect(&toggleControlLayoutAction, &QAction::changed, this,
+		&OBSBasic::ToggleVolControlLayout, Qt::DirectConnection);
+
+	QMenu popup;
+	popup.addAction(&unhideAllAction);
+	popup.addSeparator();
+	popup.addAction(&toggleControlLayoutAction);
+	popup.exec(QCursor::pos());
 }
 
 void OBSBasic::on_scenes_currentItemChanged(QListWidgetItem *current,
@@ -10179,4 +10250,15 @@ QColor OBSBasic::GetHoverColor() const
 	} else {
 		return QColor::fromRgb(0, 127, 255);
 	}
+}
+
+void OBSBasic::UpdatePreviewSpacingHelpers()
+{
+	drawSpacingHelpers = config_get_bool(
+		App()->GlobalConfig(), "BasicWindow", "SpacingHelpersEnabled");
+}
+
+float OBSBasic::GetDevicePixelRatio()
+{
+	return dpi;
 }

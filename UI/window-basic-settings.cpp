@@ -407,6 +407,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->overflowSelectionHide,CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->previewSafeAreas,     CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->automaticSearch,      CHECK_CHANGED,  GENERAL_CHANGED);
+	HookWidget(ui->previewSpacingHelpers,CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->doubleClickSwitch,    CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->studioPortraitLayout, CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->prevProgLabelToggle,  CHECK_CHANGED,  GENERAL_CHANGED);
@@ -591,8 +592,10 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 
 	// Remove the Advanced Audio section if monitoring is not supported, as the monitoring device selection is the only item in the group box.
 	if (!obs_audio_monitoring_available()) {
-		delete ui->audioAdvGroupBox;
-		ui->audioAdvGroupBox = nullptr;
+		delete ui->monitoringDeviceLabel;
+		ui->monitoringDeviceLabel = nullptr;
+		delete ui->monitoringDevice;
+		ui->monitoringDevice = nullptr;
 	}
 
 #ifdef _WIN32
@@ -647,9 +650,8 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	delete ui->browserHWAccel;
 	delete ui->sourcesGroup;
 #endif
-#if defined(__APPLE__) || defined(PULSEAUDIO_FOUND)
 	delete ui->disableAudioDucking;
-#endif
+
 	ui->rendererLabel = nullptr;
 	ui->renderer = nullptr;
 	ui->adapterLabel = nullptr;
@@ -663,9 +665,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	ui->browserHWAccel = nullptr;
 	ui->sourcesGroup = nullptr;
 #endif
-#if defined(__APPLE__) || defined(PULSEAUDIO_FOUND)
 	ui->disableAudioDucking = nullptr;
-#endif
 #endif
 
 #ifndef __APPLE__
@@ -1309,6 +1309,10 @@ void OBSBasicSettings::LoadGeneralSettings()
 	bool warnBeforeStreamStart = config_get_bool(
 		GetGlobalConfig(), "BasicWindow", "WarnBeforeStartingStream");
 	ui->warnBeforeStreamStart->setChecked(warnBeforeStreamStart);
+
+	bool spacingHelpersEnabled = config_get_bool(
+		GetGlobalConfig(), "BasicWindow", "SpacingHelpersEnabled");
+	ui->previewSpacingHelpers->setChecked(spacingHelpersEnabled);
 
 	bool warnBeforeStreamStop = config_get_bool(
 		GetGlobalConfig(), "BasicWindow", "WarnBeforeStoppingStream");
@@ -1979,7 +1983,12 @@ void OBSBasicSettings::LoadAdvOutputRecordingSettings()
 	ui->advOutRecTrack5->setChecked(tracks & (1 << 4));
 	ui->advOutRecTrack6->setChecked(tracks & (1 << 5));
 
-	idx = (astrcmpi(splitFileType, "Size") == 0) ? 1 : 0;
+	if (astrcmpi(splitFileType, "Size") == 0)
+		idx = 1;
+	else if (astrcmpi(splitFileType, "Manual") == 0)
+		idx = 2;
+	else
+		idx = 0;
 	ui->advOutSplitFile->setChecked(splitFile);
 	ui->advOutSplitFileType->setCurrentIndex(idx);
 	ui->advOutSplitFileTime->setValue(splitFileTime);
@@ -2651,8 +2660,6 @@ void OBSBasicSettings::LoadAdvancedSettings()
 	ui->autoRemux->setChecked(autoRemux);
 	ui->dynBitrate->setChecked(dynBitrate);
 
-	UpdateColorFormatSpaceWarning();
-
 	SetComboByValue(ui->colorFormat, videoColorFormat);
 	SetComboByValue(ui->colorSpace, videoColorSpace);
 	SetComboByValue(ui->colorRange, videoColorRange);
@@ -3121,6 +3128,14 @@ void OBSBasicSettings::SaveGeneralSettings()
 				ui->previewSafeAreas->isChecked());
 		main->UpdatePreviewSafeAreas();
 	}
+
+	if (WidgetChanged(ui->previewSpacingHelpers)) {
+		config_set_bool(GetGlobalConfig(), "BasicWindow",
+				"SpacingHelpersEnabled",
+				ui->previewSpacingHelpers->isChecked());
+		main->UpdatePreviewSpacingHelpers();
+	}
+
 	if (WidgetChanged(ui->doubleClickSwitch))
 		config_set_bool(GetGlobalConfig(), "BasicWindow",
 				"TransitionOnDoubleClick",
@@ -3413,6 +3428,8 @@ static inline const char *SplitFileTypeFromIdx(int idx)
 {
 	if (idx == 1)
 		return "Size";
+	else if (idx == 2)
+		return "Manual";
 	else
 		return "Time";
 }
@@ -4104,12 +4121,12 @@ void OBSBasicSettings::on_advOutFFType_currentIndexChanged(int idx)
 	ui->advOutFFNoSpace->setHidden(idx != 0);
 }
 
-void OBSBasicSettings::on_colorFormat_currentIndexChanged(const QString &)
+void OBSBasicSettings::on_colorFormat_currentIndexChanged(int)
 {
 	UpdateColorFormatSpaceWarning();
 }
 
-void OBSBasicSettings::on_colorSpace_currentIndexChanged(const QString &)
+void OBSBasicSettings::on_colorSpace_currentIndexChanged(int)
 {
 	UpdateColorFormatSpaceWarning();
 }
