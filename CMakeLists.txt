@@ -78,6 +78,7 @@ install(
   DESTINATION ${OBS_OUTPUT_DIR}/$<CONFIG>
   COMPONENT obs_rundir)
 
+
 if(INSTALLER_RUN)
   generate_multiarch_installer()
   return()
