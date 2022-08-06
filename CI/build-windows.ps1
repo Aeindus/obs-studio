@@ -73,6 +73,8 @@ function Build-OBS-Main {
     $GitTag = git describe --tags --abbrev=0
     $ErrorActionPreference = "Stop"
 
+	Write-Step "Version tag is $GitTag"
+
     if(Test-Path variable:BUILD_FOR_DISTRIBUTION) {
         $VersionString = "${GitTag}"
     } else {
