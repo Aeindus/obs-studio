@@ -145,7 +145,14 @@ jobs:
         with:
           name: 'obs-windows'
           path: '${{ steps.unpack.outputs.filename }}'
-
+      
+      - name: "Automatic Release"
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          automatic_release_tag: "latest"
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          files: '${{ steps.unpack.outputs.filename }}'
+      
   windows_package:
     name: '03 - Windows Installer'
     runs-on: [windows-latest]
