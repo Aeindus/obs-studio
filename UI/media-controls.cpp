@@ -253,7 +253,8 @@ void MediaControls::RefreshControls()
 	ui->previousButton->setVisible(has_playlist);
 	ui->nextButton->setVisible(has_playlist);
 
-	isSlideshow = strcmp(id, "slideshow") == 0;
+	isSlideshow = strcmp(id, "slideshow") == 0 ||
+		      strcmp(id, "browser_source") == 0;
 	ui->slider->setVisible(!isSlideshow);
 	ui->timerLabel->setVisible(!isSlideshow);
 	ui->label->setVisible(!isSlideshow);
