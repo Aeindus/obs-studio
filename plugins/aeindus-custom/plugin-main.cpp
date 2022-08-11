@@ -23,7 +23,7 @@ JWManager jw_manger;
 void customCallback(obs_frontend_event event, void* private_data) {
 	if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
 		obs_source_t* scene = obs_frontend_get_current_scene();
-		std::string current_scene_name = obs_name_from_scene(scene);
+		std::string current_scene_name = obs_source_get_name(scene);
 		obs_source_release(scene);
 
 		blog(LOG_INFO, "SCENE_CHANGED");

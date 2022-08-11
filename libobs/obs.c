@@ -1271,11 +1271,6 @@ static bool com_initialized = false;
  * after shutdown. */
 static DARRAY(struct dstr) core_module_paths = {0};
 
-const char *obs_name_from_scene(obs_source_t *scene)
-{
-	return scene->context.name;
-}
-
 char *obs_find_data_file(const char *file)
 {
 	struct dstr path = {0};
