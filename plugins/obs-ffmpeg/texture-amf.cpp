@@ -902,6 +902,20 @@ static void check_texture_encode_capability(obs_encoder_t *encoder, bool hevc)
 		throw "NV12 textures aren't active";
 	}
 
+	video_t *video = obs_encoder_video(encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+	switch (voi->format) {
+	case VIDEO_FORMAT_I010:
+	case VIDEO_FORMAT_P010:
+		break;
+	default:
+		switch (voi->colorspace) {
+		case VIDEO_CS_2100_PQ:
+		case VIDEO_CS_2100_HLG:
+			throw "OBS does not support 8-bit output of Rec. 2100";
+		}
+	}
+
 	if ((hevc && !caps[ovi.adapter].supports_hevc) ||
 	    (!hevc && !caps[ovi.adapter].supports_avc))
 		throw "Wrong adapter";
@@ -980,6 +994,9 @@ static obs_properties_t *amf_properties_internal(bool hevc)
 		add_profile("main");
 		add_profile("baseline");
 #undef add_profile
+
+		obs_properties_add_int(props, "bf", obs_module_text("BFrames"),
+				       0, 5, 1);
 	}
 
 	p = obs_properties_add_text(props, "ffmpeg_opts",
@@ -1108,8 +1125,19 @@ static bool amf_avc_init(void *data, obs_data_t *settings)
 	const char *preset = obs_data_get_string(settings, "preset");
 	const char *profile = obs_data_get_string(settings, "profile");
 	const char *rc_str = obs_data_get_string(settings, "rate_control");
+	int64_t bf = obs_data_get_int(settings, "bf");
 
 	check_preset_compatibility(enc, preset);
+
+	if (enc->bframes_supported) {
+		set_avc_property(enc, MAX_CONSECUTIVE_BPICTURES, bf);
+		set_avc_property(enc, B_PIC_PATTERN, bf);
+
+	} else if (bf != 0) {
+		warn("B-Frames set to %lld but b-frames are not "
+		     "supported by this device",
+		     bf);
+	}
 
 	int rc = get_avc_rate_control(rc_str);
 
@@ -1217,15 +1245,15 @@ static void *amf_avc_create_texencode(obs_data_t *settings,
 try {
 	check_texture_encode_capability(encoder, false);
 
-	amf_texencode *enc = new amf_texencode;
+	std::unique_ptr<amf_texencode> enc = std::make_unique<amf_texencode>();
 	enc->encoder = encoder;
 	enc->encoder_str = "texture-amf-h264";
 
-	if (!amf_init_d3d11(enc))
+	if (!amf_init_d3d11(enc.get()))
 		throw "Failed to create D3D11";
 
-	amf_avc_create_internal(enc, settings);
-	return enc;
+	amf_avc_create_internal(enc.get(), settings);
+	return enc.release();
 
 } catch (const amf_error &err) {
 	blog(LOG_ERROR, "[texture-amf-h264] %s: %s: %ls", __FUNCTION__, err.str,
@@ -1240,20 +1268,42 @@ try {
 static void *amf_avc_create_fallback(obs_data_t *settings,
 				     obs_encoder_t *encoder)
 try {
-	amf_fallback *enc = new amf_fallback;
+	std::unique_ptr<amf_fallback> enc = std::make_unique<amf_fallback>();
 	enc->encoder = encoder;
 	enc->encoder_str = "fallback-amf-h264";
 
-	amf_avc_create_internal(enc, settings);
-	return enc;
+	video_t *video = obs_encoder_video(encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+	switch (voi->format) {
+	case VIDEO_FORMAT_I010:
+	case VIDEO_FORMAT_P010: {
+		const char *const text =
+			obs_module_text("AMF.10bitUnsupportedAvc");
+		obs_encoder_set_last_error(encoder, text);
+		throw text;
+	}
+	default:
+		switch (voi->colorspace) {
+		case VIDEO_CS_2100_PQ:
+		case VIDEO_CS_2100_HLG: {
+			const char *const text =
+				obs_module_text("AMF.8bitUnsupportedHdr");
+			obs_encoder_set_last_error(encoder, text);
+			throw text;
+		}
+		}
+	}
+
+	amf_avc_create_internal(enc.get(), settings);
+	return enc.release();
 
 } catch (const amf_error &err) {
-	blog(LOG_ERROR, "[texture-amf-h264] %s: %s: %ls", __FUNCTION__, err.str,
-	     amf_trace->GetResultText(err.res));
+	blog(LOG_ERROR, "[fallback-amf-h264] %s: %s: %ls", __FUNCTION__,
+	     err.str, amf_trace->GetResultText(err.res));
 	return nullptr;
 
 } catch (const char *err) {
-	blog(LOG_ERROR, "[texture-amf-h264] %s: %s", __FUNCTION__, err);
+	blog(LOG_ERROR, "[fallback-amf-h264] %s: %s", __FUNCTION__, err);
 	return nullptr;
 }
 
@@ -1527,15 +1577,15 @@ static void *amf_hevc_create_texencode(obs_data_t *settings,
 try {
 	check_texture_encode_capability(encoder, true);
 
-	amf_texencode *enc = new amf_texencode;
+	std::unique_ptr<amf_texencode> enc = std::make_unique<amf_texencode>();
 	enc->encoder = encoder;
 	enc->encoder_str = "texture-amf-h265";
 
-	if (!amf_init_d3d11(enc))
+	if (!amf_init_d3d11(enc.get()))
 		throw "Failed to create D3D11";
 
-	amf_hevc_create_internal(enc, settings);
-	return enc;
+	amf_hevc_create_internal(enc.get(), settings);
+	return enc.release();
 
 } catch (const amf_error &err) {
 	blog(LOG_ERROR, "[texture-amf-h265] %s: %s: %ls", __FUNCTION__, err.str,
@@ -1550,20 +1600,38 @@ try {
 static void *amf_hevc_create_fallback(obs_data_t *settings,
 				      obs_encoder_t *encoder)
 try {
-	amf_fallback *enc = new amf_fallback;
+	std::unique_ptr<amf_fallback> enc = std::make_unique<amf_fallback>();
 	enc->encoder = encoder;
 	enc->encoder_str = "fallback-amf-h265";
 
-	amf_hevc_create_internal(enc, settings);
-	return enc;
+	video_t *video = obs_encoder_video(encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+	switch (voi->format) {
+	case VIDEO_FORMAT_I010:
+	case VIDEO_FORMAT_P010:
+		break;
+	default:
+		switch (voi->colorspace) {
+		case VIDEO_CS_2100_PQ:
+		case VIDEO_CS_2100_HLG: {
+			const char *const text =
+				obs_module_text("AMF.8bitUnsupportedHdr");
+			obs_encoder_set_last_error(encoder, text);
+			throw text;
+		}
+		}
+	}
+
+	amf_hevc_create_internal(enc.get(), settings);
+	return enc.release();
 
 } catch (const amf_error &err) {
-	blog(LOG_ERROR, "[texture-amf-h265] %s: %s: %ls", __FUNCTION__, err.str,
-	     amf_trace->GetResultText(err.res));
+	blog(LOG_ERROR, "[fallback-amf-h265] %s: %s: %ls", __FUNCTION__,
+	     err.str, amf_trace->GetResultText(err.res));
 	return nullptr;
 
 } catch (const char *err) {
-	blog(LOG_ERROR, "[texture-amf-h265] %s: %s", __FUNCTION__, err);
+	blog(LOG_ERROR, "[fallback-amf-h265] %s: %s", __FUNCTION__, err);
 	return nullptr;
 }
 

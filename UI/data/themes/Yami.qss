@@ -201,7 +201,11 @@ SourceTree::item:selected:hover {
 }
 
 QListWidget::item:disabled,
-QListWidget::item:hover {
+QListWidget::item:disabled:hover,
+SourceTree::item:disabled,
+SourceTree::item:disabled:hover,
+SceneTree::item:disabled,
+SceneTree::item:disabled:hover {
     background: transparent;
     color: rgb(153,153,153);
 }
@@ -232,6 +236,11 @@ OBSBasicSettings QListWidget {
 OBSBasicSettings QListWidget::item {
     border-radius: 4px;
     padding: 6px;
+}
+
+/* Settings properties view */
+OBSBasicSettings #PropertiesContainer {
+    background-color: palette(dark);
 }
 
 /* Dock Widget */
@@ -1278,14 +1287,15 @@ OBSBasic {
 /* Scene Tree Grid Mode */
 
 SceneTree {
-    qproperty-gridItemWidth: 150;
-    qproperty-gridItemHeight: 27;
+    qproperty-gridItemWidth: 154;
+    qproperty-gridItemHeight: 31;
 }
 
 *[gridMode="true"] SceneTree::item {
     color: palette(text);
     background-color: palette(button);
     border-radius: 4px;
+    margin: 2px;
 }
 
 *[gridMode="true"] SceneTree::item:selected {
@@ -1473,4 +1483,9 @@ QCalendarWidget QAbstractItemView:disabled {
 #VirtualProperties QWidget {
     margin-top: 0;
     margin-bottom: 0;
+}
+
+/* Disable icons on QDialogButtonBox */
+QDialogButtonBox {
+    dialogbuttonbox-buttons-have-icons: 0;
 }

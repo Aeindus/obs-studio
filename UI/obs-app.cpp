@@ -551,7 +551,9 @@ static bool MakeUserDirs()
 		return false;
 	if (!do_mkdir(path))
 		return false;
+#endif
 
+#ifdef WHATSNEW_ENABLED
 	if (GetConfigPath(path, sizeof(path), "obs-studio/updates") <= 0)
 		return false;
 	if (!do_mkdir(path))
@@ -1189,7 +1191,6 @@ std::string OBSApp::SetParentTheme(std::string name)
 	if (path.empty())
 		return path;
 
-	setStyleSheet(defaultStyleSheet);
 	setPalette(defaultPalette);
 
 	QString mpath = QString("file:///") + path.c_str();
@@ -1204,8 +1205,8 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 	path = GetTheme(name, path);
 	if (path.empty())
 		return false;
-
-	themeMeta = ParseThemeMeta(path.c_str());
+	unique_ptr<OBSThemeMeta> themeMeta;
+	themeMeta.reset(ParseThemeMeta(path.c_str()));
 	string parentPath;
 
 	if (themeMeta && !themeMeta->parent.empty()) {
@@ -1214,7 +1215,6 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 
 	string lpath = path;
 	if (parentPath.empty()) {
-		setStyleSheet(defaultStyleSheet);
 		setPalette(defaultPalette);
 	} else {
 		lpath = parentPath;
@@ -1238,7 +1238,6 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 bool OBSApp::InitTheme()
 {
 	defaultPalette = palette();
-	defaultStyleSheet = styleSheet();
 
 	const char *themeName =
 		config_get_string(globalConfig, "General", "CurrentTheme3");
