@@ -1,12 +1,11 @@
 @echo off
 
-rem Restore OBS config and run
-
+REM Restore OBS config and run
 
 set backup_path=%appdata%\obs-studio\backup
 set obs_data_path=%appdata%\obs-studio\basic
 
-if "%1"=="/?" goto :help
+if "%1"=="/?" goto help
 if "%1"=="/backup" goto create_backup
 goto restore_and_run
 
@@ -48,5 +47,8 @@ goto restore_and_run
 	exit /b
 	
 :run
-	start bin\64bit\obs64.exe
+	REM You must cd to the exe location otherwise it won't find libobs-d3d11
+	REM and will error out with "Your GPU may not be suported"
+	cd bin\64bit
+	start obs64.exe
 	exit
