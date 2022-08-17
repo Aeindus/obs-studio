@@ -314,10 +314,10 @@ if(TARGET OBS::browser-panels)
 
   if(OS_WINDOWS OR OS_MACOS)
     set(ENABLE_WHATSNEW
-        ON
+        OFF
         CACHE INTERNAL "Enable WhatsNew dialog")
   elseif(OS_LINUX)
-    option(ENABLE_WHATSNEW "Enable WhatsNew dialog" ON)
+    option(ENABLE_WHATSNEW "Enable WhatsNew dialog" OFF)
   endif()
 
   if(ENABLE_WHATSNEW)
