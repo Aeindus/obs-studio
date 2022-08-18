@@ -28,17 +28,17 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 +================================+===========================================+=====================================+==============================================================================+
 | JWScena 1 Premergatoare        | - Textul Anului (Image)                   |                                     | - Scena folosita inainte de inceperea intrunirii                             |
 +--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| JWScena 2 Podium               | - Camera                                  | - Microfoane sala                   | - Standard. Folosit in timpul intrunirii.                                    |
+| JWScena 2 Podium               | - Camera Sala                             | - Microfoane Sala                   | - Standard. Folosit in timpul intrunirii.                                    |
 |                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                                     |
 +--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| JWScena 3 Videoclip pe Zoom    | - Captura Monitor Secundar                | - Microfoane sala                   | - Folosit pentru prezentarea unui video din JW.                              |
+| JWScena 3 Videoclip pe Zoom    | - Captura Monitor Secundar                | - Microfoane Sala                   | - Folosit pentru prezentarea unui video din JW.                              |
 |                                | (Display Capture)                         | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                     |
 |                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.                         |
 +--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| PScena 4 Prezentari Media      | - Imagini Slideshow (Image Slideshow)     | - Microfoane sala                   | - Folosit pentru prezentarea de imagini si video dintr-un folder predefinit. |
+| PScena 4 Prezentari Media      | - Imagini Slideshow (Image Slideshow)     | - Microfoane Sala                   | - Folosit pentru prezentarea de imagini si video dintr-un folder predefinit. |
 |                                | - Video Slideshow (Media Source)          |                                     | - Se poate raspunde pe Zoom si din sala.                                     |
 +--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| PScena 5 Prezentare pdf        | - Browser                                 | - Microfoane sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini).                 |
+| PScena 5 Prezentare pdf        | - Browser                                 | - Microfoane Sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini).                 |
 |                                |                                           | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                     |
 |                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.                         |
 +--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
