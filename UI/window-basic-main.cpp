@@ -288,17 +288,6 @@ OBSBasic::OBSBasic(QWidget *parent)
 
 	copyActionsDynamicProperties();
 
-	char styleSheetPath[512];
-	int ret = GetProfilePath(styleSheetPath, sizeof(styleSheetPath),
-				 "stylesheet.qss");
-	if (ret > 0) {
-		if (QFile::exists(styleSheetPath)) {
-			QString path =
-				QString("file:///") + QT_UTF8(styleSheetPath);
-			App()->setStyleSheet(path);
-		}
-	}
-
 	qRegisterMetaType<int64_t>("int64_t");
 	qRegisterMetaType<uint32_t>("uint32_t");
 	qRegisterMetaType<OBSScene>("OBSScene");
@@ -740,6 +729,8 @@ void OBSBasic::Save(const char *file)
 	obs_data_set_double(saveData, "scaling_off_y",
 			    ui->preview->GetScrollY());
 
+	OBSBasicVCamConfig::SaveData(saveData, true);
+
 	if (api) {
 		OBSDataAutoRelease moduleObj = obs_data_create();
 		api->on_save(moduleObj);
@@ -1151,6 +1142,8 @@ retryScene:
 	}
 	ui->preview->SetFixedScaling(fixedScaling);
 	emit ui->preview->DisplayResized();
+
+	OBSBasicVCamConfig::SaveData(data, false);
 
 	/* ---------------------- */
 
@@ -2731,6 +2724,8 @@ OBSBasic::~OBSBasic()
 	delete cef;
 	cef = nullptr;
 #endif
+
+	OBSBasicVCamConfig::DestroyView();
 }
 
 void OBSBasic::SaveProjectNow()
