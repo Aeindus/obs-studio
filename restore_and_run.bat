@@ -15,7 +15,7 @@ goto restore_and_run
 	echo 	[/backup] 	Replaces/Creates a backup
 	exit
 :create_backup
-	rmdir /S /Q %backup_path%
+	rmdir /S /Q %backup_path% > nul
 	if exist "%backup_path%" (
 		echo Backup delete failed! Most likely the files in backup folder are in use.
 		timeout 5
