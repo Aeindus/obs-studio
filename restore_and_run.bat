@@ -21,10 +21,10 @@ goto restore_and_run
 		timeout 5
 	)
 	xcopy "%obs_data_path%\*.*" "%backup_path%\"  /E /Y /R /I
-	if not exist "%backup_path%\scenes\Untitled.json" (
-		echo Backup failed! No scenes\Untitled.json file was found in backup.
-		timeout 5
+	for %%i in ("%backup_path%\scenes\*.json") do (
+		echo Backed up profile %%i
 	)
+	timeout 4
 	exit
 	
 :restore_and_run
@@ -38,12 +38,14 @@ goto restore_and_run
 		timeout 4
 		exit /b 
 	)
-	if not exist "%backup_path%\scenes\Untitled.json" (
-		echo No backup scenes\Untitled.json was found
-		timeout 4
-		exit /b
-	) 
 	xcopy "%backup_path%\*.*" "%obs_data_path%\" /E /Y /R /I
+	for %%i in ("%backup_path%\scenes\*.json") do (
+		echo Restored profile %%i
+	)
+	if not exist "%backup_path%\scenes\Untitled.json" (
+		echo Warning: No default profile scenes\Untitled.json was found
+	) 
+	timeout 4
 	exit /b
 	
 :run
