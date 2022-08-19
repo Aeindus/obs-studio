@@ -261,6 +261,7 @@ void MediaControls::RefreshControls()
 
 	uint32_t flags = 0;
 	const char *id = nullptr;
+	char title[100];
 
 	if (source) {
 		flags = obs_source_get_output_flags(source);
@@ -308,6 +309,10 @@ void MediaControls::RefreshControls()
 		UpdateSlideCounter();
 	else
 		SetSliderPosition();
+
+	// Update title as done in next and previous buttons
+	obs_source_media_get_title(source, title);
+	ui->titleLabel->setText(title);
 }
 
 OBSSource MediaControls::GetSource()
@@ -438,16 +443,24 @@ void MediaControls::StopMedia()
 void MediaControls::PlaylistNext()
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
+	char title[100];
+
 	if (source) {
 		obs_source_media_next(source);
+		obs_source_media_get_title(source, title);
+		ui->titleLabel->setText(title);
 	}
 }
 
 void MediaControls::PlaylistPrevious()
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
+	char title[100];
+
 	if (source) {
 		obs_source_media_previous(source);
+		obs_source_media_get_title(source, title);
+		ui->titleLabel->setText(title);
 	}
 }
 
