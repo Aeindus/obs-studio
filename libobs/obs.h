@@ -1581,6 +1581,7 @@ EXPORT int64_t obs_source_media_get_duration(obs_source_t *source);
 EXPORT int64_t obs_source_media_get_time(obs_source_t *source);
 EXPORT void obs_source_media_set_time(obs_source_t *source, int64_t ms);
 EXPORT enum obs_media_state obs_source_media_get_state(obs_source_t *source);
+EXPORT void obs_source_media_get_title(obs_source_t *source, char *title);
 EXPORT void obs_source_media_started(obs_source_t *source);
 EXPORT void obs_source_media_ended(obs_source_t *source);
 
