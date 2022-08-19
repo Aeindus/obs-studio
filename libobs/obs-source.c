@@ -5843,6 +5843,16 @@ enum obs_media_state obs_source_media_get_state(obs_source_t *source)
 		return OBS_MEDIA_STATE_NONE;
 }
 
+void obs_source_media_get_title(obs_source_t *source, char *title)
+{
+	if (!data_valid(source, "obs_source_media_get_title"))
+		return;
+
+	if (source->info.media_get_title)
+		return source->info.media_get_title(source->context.data,
+						    title);
+}
+
 void obs_source_media_started(obs_source_t *source)
 {
 	if (!obs_source_valid(source, "obs_source_media_started"))
