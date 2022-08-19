@@ -261,7 +261,7 @@ void MediaControls::RefreshControls()
 
 	uint32_t flags = 0;
 	const char *id = nullptr;
-	char title[100];
+	char title[100] = {0};
 
 	if (source) {
 		flags = obs_source_get_output_flags(source);
@@ -443,7 +443,7 @@ void MediaControls::StopMedia()
 void MediaControls::PlaylistNext()
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
-	char title[100];
+	char title[100] = {0};
 
 	if (source) {
 		obs_source_media_next(source);
@@ -455,7 +455,7 @@ void MediaControls::PlaylistNext()
 void MediaControls::PlaylistPrevious()
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
-	char title[100];
+	char title[100] = {0};
 
 	if (source) {
 		obs_source_media_previous(source);
