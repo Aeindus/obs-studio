@@ -40,6 +40,7 @@ private:
 
 	void UpdateMultiview();
 	void UpdateProjectorTitle(QString name);
+	void CloseProjector();
 
 	QRect prevGeometry;
 	void SetMonitor(int monitor);
@@ -65,8 +66,6 @@ public:
 	static void UpdateMultiviewProjectors();
 	void RenameProjector(QString oldName, QString newName);
 	void SetHideCursor();
-
-	void CloseProjector();
 
 	bool IsAlwaysOnTop() const;
 	bool IsAlwaysOnTopOverridden() const;
