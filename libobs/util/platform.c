@@ -677,6 +677,30 @@ const char *os_get_path_extension(const char *path)
 	return path + pos;
 }
 
+const char* os_get_path_filename(const char* path) {
+	struct dstr temp;
+	size_t pos = 0;
+	char *period;
+	char *slash;
+
+	if (!path[0])
+		return NULL;
+
+	dstr_init_copy(&temp, path);
+	dstr_replace(&temp, "\\", "/");
+
+	slash = strrchr(temp.array, '/');
+	if (slash)
+		pos = (size_t)(slash - temp.array);
+
+	dstr_free(&temp);
+
+	if (!slash)
+		return NULL;
+
+	return path + pos + 1;
+}
+
 static inline bool valid_string(const char *str)
 {
 	while (str && *str) {
