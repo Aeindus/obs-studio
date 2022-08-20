@@ -122,6 +122,7 @@ EXPORT size_t os_get_abs_path(const char *path, char *abspath, size_t size);
 EXPORT char *os_get_abs_path_ptr(const char *path);
 
 EXPORT const char *os_get_path_extension(const char *path);
+EXPORT const char *os_get_path_filename(const char *path);
 
 EXPORT bool os_get_emulation_status(void);
 

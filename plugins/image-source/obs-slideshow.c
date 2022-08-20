@@ -129,6 +129,20 @@ static enum obs_media_state ss_get_state(void *data)
 	return ss->state;
 }
 
+static void ss_media_get_title(void *data, char *out_title)
+{
+	struct slideshow *ss = data;
+
+	if (ss->files.num) {
+		const char *filename = os_get_path_filename(
+			ss->files.array[ss->cur_item].path);
+		if (filename != NULL)
+			strcpy(out_title, filename);
+		else
+			strcpy(out_title, ss->files.array[ss->cur_item].path);
+	}
+}
+
 static obs_source_t *get_transition(struct slideshow *ss)
 {
 	obs_source_t *tr;
@@ -1119,4 +1133,4 @@ struct obs_source_info slideshow_info = {
 	.media_previous = ss_previous_slide,
 	.media_get_state = ss_get_state,
 	.video_get_color_space = ss_video_get_color_space,
-};
+	.media_get_title = ss_media_get_title};
