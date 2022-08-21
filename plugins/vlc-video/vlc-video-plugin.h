@@ -38,6 +38,11 @@ typedef void (*LIBVLC_MEDIA_RETAIN)(libvlc_media_t *p_md);
 typedef void (*LIBVLC_MEDIA_RELEASE)(libvlc_media_t *p_md);
 typedef char *(*LIBVLC_MEDIA_GET_META)(libvlc_media_t *p_md,
 				       libvlc_meta_t e_meta);
+typedef void (*LIBVLC_MEDIA_SET_META)(libvlc_media_t *p_md,
+				      libvlc_meta_t e_meta,
+				      const char *psz_value);
+typedef void (*LIBVLC_MEDIA_SAVE_META)(libvlc_media_t *p_md);
+typedef char *(*LIBVLC_MEDIA_GET_MRL)(libvlc_media_t *p_md);
 typedef unsigned (*LIBVLC_MEDIA_TRACKS_GET)(libvlc_media_t *p_md,
 					    libvlc_media_track_t ***pp_es);
 typedef void (*LIBVLC_MEDIA_TRACKS_RELEASE)(libvlc_media_track_t **p_tracks,
@@ -129,6 +134,9 @@ extern LIBVLC_MEDIA_ADD_OPTION libvlc_media_add_option_;
 extern LIBVLC_MEDIA_RELEASE libvlc_media_release_;
 extern LIBVLC_MEDIA_RETAIN libvlc_media_retain_;
 extern LIBVLC_MEDIA_GET_META libvlc_media_get_meta_;
+extern LIBVLC_MEDIA_SET_META libvlc_media_set_meta_;
+extern LIBVLC_MEDIA_SAVE_META libvlc_media_save_meta_;
+extern LIBVLC_MEDIA_GET_MRL libvlc_media_get_mrl_;
 extern LIBVLC_MEDIA_TRACKS_GET libvlc_media_tracks_get_;
 extern LIBVLC_MEDIA_TRACKS_RELEASE libvlc_media_tracks_release_;
 
