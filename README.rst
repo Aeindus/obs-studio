@@ -26,7 +26,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 +--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
 | NUME SCENA                     | VIDEO                                     | AUDIO                               | DETALII                                                      |
 +================================+===========================================+=====================================+==============================================================+
-| JWScena 1 Premergatoare        | - Textul Anului (Image)                   |                                     | - Scena folosita inainte de inceperea intrunirii             |
+| VJWScena 1 Premergatoare       |                                           |                                     | - Scena folosita inainte de inceperea intrunirii             |
 +--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
 | JWScena 2 Podium               | - Camera Sala                             | - Microfoane Sala                   | - Standard. Folosit in timpul intrunirii.                    |
 |                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                     |
@@ -48,7 +48,10 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 
 - **VPScena 5** contine doua capturi de ecran dar a doua este dezactivata. Prima va captura fereastra a 3-a a Zoomului. Insa daca aceasta nu a fost activata inainte de inceperea sesiunii atunci ea nu mai poate fi deschisa (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop.
-- **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
+- **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe*.
+- **PScena 4** contine o sursa de imagini pe post de backup. Unele formate de imagini si de video nu pot fi redate prin browser asadar pentru cazurile exceptionale va fi folosita aceasta sursa. Cu toate acestea, sursa de video *Vlc Slideshow* nu poate fi folosita ca backup deoarece nu reda audio-ul prin difuzoare ci doar prin mixerul din OBS.
+
+
 Development
 -------------------
 
@@ -81,29 +84,3 @@ Quick Links
 - Donating/backing/sponsoring: https://obsproject.com/contribute
 
 - Bug Tracker: https://github.com/obsproject/obs-studio/issues
-
-Contributing
-------------
-
-- If you would like to help fund or sponsor the project, you can do so
-  via `Patreon <https://www.patreon.com/obsproject>`_, `OpenCollective
-  <https://opencollective.com/obsproject>`_, or `PayPal
-  <https://www.paypal.me/obsproject>`_.  See our `contribute page
-  <https://obsproject.com/contribute>`_ for more information.
-
-- If you wish to contribute code to the project, please make sure to
-  read the coding and commit guidelines:
-  https://github.com/obsproject/obs-studio/blob/master/CONTRIBUTING.rst
-
-- Developer/API documentation can be found here:
-  https://obsproject.com/docs
-
-- If you wish to contribute translations, do not submit pull requests.
-  Instead, please use Crowdin.  For more information read this page:
-  https://obsproject.com/wiki/How-To-Contribute-Translations-For-OBS
-
-- Other ways to contribute are by helping people out with support on
-  our forums or in our community chat.  Please limit support to topics
-  you fully understand -- bad advice is worse than no advice.  When it
-  comes to something that you don't fully know or understand, please
-  defer to the official help or official channels.
