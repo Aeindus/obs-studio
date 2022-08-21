@@ -23,31 +23,28 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 .. table:: Obs scenes table
     :widths: auto
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| NUME SCENA                     | VIDEO                                     | AUDIO                               | DETALII                                                                      |
-+================================+===========================================+=====================================+==============================================================================+
-| JWScena 1 Premergatoare        | - Textul Anului (Image)                   |                                     | - Scena folosita inainte de inceperea intrunirii                             |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| JWScena 2 Podium               | - Camera Sala                             | - Microfoane Sala                   | - Standard. Folosit in timpul intrunirii.                                    |
-|                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                                     |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| JWScena 3 Videoclip pe Zoom    | - Captura Monitor Secundar                | - Microfoane Sala                   | - Folosit pentru prezentarea unui video din JW.                              |
-|                                | (Display Capture)                         | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                     |
-|                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.                         |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| PScena 4 Prezentari Media      | - Imagini Slideshow (Image Slideshow)     | - Microfoane Sala                   | - Folosit pentru prezentarea de imagini si video dintr-un folder predefinit. |
-|                                | - Video Slideshow (Media Source)          |                                     | - Se poate raspunde pe Zoom si din sala.                                     |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| PScena 5 Prezentare pdf        | - Browser                                 | - Microfoane Sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini).                 |
-|                                |                                           | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                     |
-|                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.                         |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-| VPScena 6 Cuvantare de pe Zoom | - Captura proiector Zoom (Window Capture) |                                     | - Folosit pentru o cuvantare/demonstratie de pe Zoom.                        |
-|                                | - Captura dashboard Zoom                  |                                     | - Video-ul catre Zoom e inchis.                                              |
-|                                |                                           |                                     | - Audio-ul catre Zoom e inchis.                                              |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
-|                                |                                           |                                     |                                                                              |
-+--------------------------------+-------------------------------------------+-------------------------------------+------------------------------------------------------------------------------+
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+| NUME SCENA                     | VIDEO                                     | AUDIO                               | DETALII                                                      |
++================================+===========================================+=====================================+==============================================================+
+| JWScena 1 Premergatoare        | - Textul Anului (Image)                   |                                     | - Scena folosita inainte de inceperea intrunirii             |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+| JWScena 2 Podium               | - Camera Sala                             | - Microfoane Sala                   | - Standard. Folosit in timpul intrunirii.                    |
+|                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                     |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+| JWScena 3 Videoclip pe Zoom    | - Captura Monitor Secundar                | - Microfoane Sala                   | - Folosit pentru prezentarea unui video din JW.              |
+|                                | (Display Capture)                         | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                     |
+|                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.         |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+| PScena 4 Prezentare Media      | - Browser                                 | - Microfoane Sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini). |
+|                                | - Imagini (Image Slideshow) **ascuns**    | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                     |
+|                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.         |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+| VPScena 5 Cuvantare de pe Zoom | - Captura proiector Zoom (Window Capture) |                                     | - Folosit pentru o cuvantare/demonstratie de pe Zoom.        |
+|                                | - Captura dashboard Zoom                  |                                     | - Video-ul catre Zoom e inchis.                              |
+|                                |                                           |                                     | - Audio-ul catre Zoom e inchis.                              |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
+|                                |                                           |                                     |                                                              |
++--------------------------------+-------------------------------------------+-------------------------------------+--------------------------------------------------------------+
 
 
 - **VPScena 5** contine doua capturi de ecran dar a doua este dezactivata. Prima va captura fereastra a 3-a a Zoomului. Insa daca aceasta nu a fost activata inainte de inceperea sesiunii atunci ea nu mai poate fi deschisa (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop.
