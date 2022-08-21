@@ -37,6 +37,7 @@
 #define T_SUBTITLE_ENABLE              T_("SubtitleEnable")
 #define T_SUBTITLE_TRACK               T_("SubtitleTrack")
 
+#define libvlc_meta_Path				1000
 /* clang-format on */
 
 /* ------------------------------------------------------------------------- */
@@ -577,6 +578,10 @@ static void add_file(struct vlc_source *c, struct darray *array,
 		libvlc_media_add_option_(new_media, sub_option.array);
 		dstr_free(&sub_option);
 
+		// Add path metadata to media
+		//libvlc_media_set_meta_(new_media, libvlc_meta_Title, "ad");
+		//libvlc_media_save_meta_(new_media);
+
 		data.path = new_path.array;
 		data.media = new_media;
 		da_push_back(new_files, &data);
@@ -824,6 +829,28 @@ static enum obs_media_state vlcs_get_state(void *data)
 	}
 
 	return 0;
+}
+
+static void vlcs_get_title(void *data, char *out_title)
+{
+	struct vlc_source *c = data;
+	libvlc_media_t *media;
+	char *mrl;
+
+	media = libvlc_media_player_get_media_(c->media_player);
+	out_title[0] = '\0';
+
+	if (!media)
+		return;
+
+	mrl = libvlc_media_get_mrl_(media);
+	if (mrl) {
+		strcpy(out_title, os_get_path_filename(mrl));
+	}
+
+	libvlc_media_release_(media);
+
+	return;
 }
 
 static void vlcs_play_pause(void *data, bool pause)
@@ -1237,4 +1264,5 @@ struct obs_source_info vlc_source_info = {
 	.media_get_time = vlcs_get_time,
 	.media_set_time = vlcs_set_time,
 	.media_get_state = vlcs_get_state,
+	.media_get_title = vlcs_get_title,
 };
