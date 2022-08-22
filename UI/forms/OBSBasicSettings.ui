@@ -505,6 +505,13 @@
                      </property>
                     </widget>
                    </item>
+				   <item row="4" column="1">
+                    <widget class="QCheckBox" name="forceJWProjector">
+                     <property name="text">
+                      <string>Force JW projector on screen</string>
+                     </property>
+                    </widget>
+                   </item>
                    <item row="1" column="0">
                     <spacer name="horizontalSpacer">
                      <property name="orientation">

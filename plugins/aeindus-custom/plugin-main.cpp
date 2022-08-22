@@ -6,8 +6,9 @@
 #include <cstring>
 #include <thread>
 #include <obs-module.h>
-#include "plugin-macros.generated.hpp"
 #include "UI\obs-frontend-api\obs-frontend-api.h"
+#include "plugin-macros.generated.hpp"
+
 #include "JWManager.hpp"
 #include "ZoomManager.hpp"
 
@@ -39,7 +40,6 @@ void customCallback(obs_frontend_event event, void* private_data) {
 		}
 
 		std::string flags = current_scene_name.substr(0, start_of_scene);
-
 
 		if (flags.find("JW") != std::string::npos) {
 			jw_manger.toggle(PROJ_OPERATION::MAXIMIZE);
@@ -78,6 +78,8 @@ void customCallback(obs_frontend_event event, void* private_data) {
 
 bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully");
+
+	jw_manger.setGlobalConfig(obs_frontend_get_global_config());
 
 	// Register events
 	obs_frontend_add_event_callback(customCallback, nullptr);
