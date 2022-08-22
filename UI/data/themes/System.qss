@@ -22,6 +22,10 @@ OBSThemeMeta {
     qproperty-icon: url(:/res/images/minus.svg);
 }
 
+* [themeID="clearIconSmall"] {
+    qproperty-icon: url(:/res/images/entry-clear.svg);
+}
+
 * [themeID="propertiesIconSmall"] {
     qproperty-icon: url(:/settings/images/settings/general.svg);
 }
@@ -225,10 +229,6 @@ VisibilityCheckBox::indicator:checked {
 
 VisibilityCheckBox::indicator:unchecked {
     image: url(:res/images/invisible.svg);
-}
-
-* [themeID="trashIcon"] {
-    qproperty-icon: url(:res/images/trash.svg);
 }
 
 * [themeID="revertIcon"] {

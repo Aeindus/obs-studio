@@ -454,6 +454,10 @@ QToolButton:pressed {
     qproperty-icon: url(./Dark/trash.svg);
 }
 
+* [themeID="clearIconSmall"] {
+    qproperty-icon: url(./Dark/entry-clear.svg);
+}
+
 * [themeID="propertiesIconSmall"] {
     qproperty-icon: url(./Dark/settings/general.svg);
 }
@@ -1157,10 +1161,6 @@ VisibilityCheckBox::indicator:checked:hover {
 VisibilityCheckBox::indicator:unchecked,
 VisibilityCheckBox::indicator:unchecked:hover {
     image: url(:res/images/invisible.svg);
-}
-
-* [themeID="trashIcon"] {
-    qproperty-icon: url(./Dark/trash.svg);
 }
 
 * [themeID="revertIcon"] {

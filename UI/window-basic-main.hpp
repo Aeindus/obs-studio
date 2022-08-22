@@ -808,6 +808,7 @@ private slots:
 	void TBarReleased();
 
 	void LockVolumeControl(bool lock);
+	void ResetProxyStyleSliders();
 
 private:
 	/* OBS Callbacks */
