@@ -9,6 +9,13 @@
 #include <thread>
 #include <vector>
 
+#define SPIN_LOCK(var,x,y) \
+for (int q = 0; q < x / y; q++) {\
+	if(var) break;\
+	Sleep(y);\
+}
+
+
 enum class PROJ_OPERATION {
 	MAXIMIZE,
 	MINIMIZE,
