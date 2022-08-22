@@ -48,7 +48,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 * **JWScena 3**
 
-  * *Captura Monitor Secundar* trebuie sa foloseasca ca metoda de captura DXGI Desktop Duplication. Altfel va aparea o bordura galbena pe marginea monitorului
+  * *Captura Monitor Secundar* trebuie sa foloseasca ca metoda de captura *DXGI Desktop Duplication*. Altfel va aparea o bordura galbena pe marginea monitorului
 
 * **PScena 4**
 
@@ -57,11 +57,12 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 * **VPScena 5** 
 
-  * Prima sursa va captura fereastra a 3-a a Zoomului. Insa daca optiunea *Use Dual Monitors* nu a fost activata inainte de inceperea sesiunii atunci ea nu mai poate fi deschisa (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului.
+  * Prima sursa va captura fereastra a 3-a a Zoomului. In lista de procese apare intotdeauna un proces numit *[Zoom] Projector Window* care trebuie selectat. Insa daca optiunea *Use Dual Monitors* nu a fost activata inainte de inceperea sesiunii atunci proiectorul din Zoom nu mai poate fi deschis (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului.
   * A doua captura ascunsa e pe post de backup si inregistreaza fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop pentru a ascunde controalele.
-
+  * La ambele surse metoda de captare trebuie setata in proprietati la *Windows 10 (1903 and up)*.
+  
 |
-* **Captura proiector** Zoom captureaza fereastra a 3-a de Zoom. In lista de procese apare intotdeauna un proces numit *[Zoom] Projector Window* care trebuie selectat.
+
 * **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
 
