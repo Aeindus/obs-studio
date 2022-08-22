@@ -13,7 +13,7 @@ Documentatie
 ------------------
 
 Cuvinte cheie cautate in numele scenei:
- * *JWScena*	Va cauta proiectorul aplicatiei JW Library si il va afisa pe al doilea monitor (indiferent de ce era prezentat inainte)
+ * *JWScena*	Va cauta proiectorul aplicatiei JW Library si il va afisa pe al doilea monitor (indiferent de ce era prezentat inainte). Daca acest comportament creeaza probleme el poate fi dezactivat din *Settings > General > Projectors > Force JW projector on screen*.
  * *PScena*	Va afisa proiectorul creat de OBS (indiferent de ce era prezentat inainte).
  * *VScena*	Camera virtuala va fi dezactivata. Comportamentul normal este ca ea sa fie activa.
 (poate fi folosita orice combinatie dintre **JW**, **P** si **V**)
@@ -62,6 +62,8 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   * La ambele surse metoda de captare trebuie setata in proprietati la *Windows 10 (1903 and up)*.
   
 |
+
+* Sursa **Browser** a fost modificata. Se pot afisa fisiere, foldere sau url-uri. Videoclipurile pot fi pornite sau puse pe pauza cu ajutorul butonului din bara de control (Next, Stop, Previous). Numele fisierului in derulare este afisat tot in bara. Pentru pdf-uri se poate reactiva bordura de sus a editorului din proprietati (optiunea *Show pdf toolbar*).
 
 * **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
