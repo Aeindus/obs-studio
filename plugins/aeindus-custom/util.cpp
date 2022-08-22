@@ -215,6 +215,7 @@ void toggleProjectors(PROJ_OPERATION operation, std::vector<WINDOW_DATA>& window
 			// Show window but use NORMAL flag as it seems to be
 			// safer than MAXIMIZE (in my tests JW projector dislikes
 			// to be maximized)
+			ShowWindow(descriptor.hwnd, SW_MINIMIZE);
 			ShowWindow(descriptor.hwnd, SW_NORMAL);
 
 			// The window seems to be invisible even though it has been maximized and
