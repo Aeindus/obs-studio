@@ -1,8 +1,9 @@
 #include "JWManager.hpp"
-#include <obs-module.h>
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <obs-module.h>
+#include <util/config-file.h>
 #include "plugin-macros.generated.hpp"
 #include "util.hpp"
 
@@ -21,6 +22,8 @@ void JWManager::runner() {
 		// ----------- Guard access -----------
 		std::lock_guard<std::mutex> guard(lock_projector_access);
 		// ----------- Guard access -----------
+
+		if(!config_get_bool(global_config, "BasicWindow", "ForceJWProjector")) continue;
 
 		//TODO: if the window is minimized then I cannot find the true
 		// projector. 

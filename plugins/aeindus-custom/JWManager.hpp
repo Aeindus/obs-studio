@@ -4,6 +4,7 @@
 #include <atomic>
 #include <mutex>
 #include "util.hpp"
+#include "UI\obs-frontend-api\obs-frontend-api.h"
 
 class JWManager {
 private:
@@ -11,6 +12,7 @@ private:
 	std::mutex lock_projector_access;
 	std::atomic<bool> shutdown_event = false;
 	std::thread manager;
+	config_t* global_config;
 
 	static bool matchProjector(WINDOW_DATA descriptor);
 
@@ -20,6 +22,10 @@ private:
 public:
 	JWManager();
 	~JWManager();
+
+	void setGlobalConfig(config_t* config){
+		global_config = config;
+	}
 
 	void toggle(PROJ_OPERATION operation);
 };
