@@ -53,7 +53,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 * **PScena 4**
 
   * Sursa de imagini ascunsa este pe post de backup. Unele formate de imagini si de video nu pot fi redate prin browser asadar pentru cazurile exceptionale va fi folosita aceasta sursa. Cu toate acestea, sursa de video Vlc Slideshow nu poate fi folosita ca backup deoarece nu reda audio-ul prin difuzoare ci doar prin mixerul din OBS.
-  * Browserul trebuie sa aiba activata optiunea Shutdown source when not visible. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.
+  * Browserul trebuie sa aiba activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.
 
 * **VPScena 5** 
 
