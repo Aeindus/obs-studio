@@ -18,7 +18,7 @@
 OBS_DECLARE_MODULE()
 
 bool first_run = true;
-JWManager jw_manger;
+JWManager jw_manager;
 
 void customCallback(obs_frontend_event event, void* private_data) {
 	if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
@@ -42,12 +42,12 @@ void customCallback(obs_frontend_event event, void* private_data) {
 		std::string flags = current_scene_name.substr(0, start_of_scene);
 
 		if (flags.find("JW") != std::string::npos) {
-			jw_manger.toggle(PROJ_OPERATION::MAXIMIZE);
+			jw_manager.toggle(PROJ_OPERATION::MAXIMIZE);
 		} else {
 			// We will not minimize JW projector because we want it
 			// to be shown by default and at all times except
 			// when overriden
-			jw_manger.toggle(PROJ_OPERATION::NOTHING);
+			jw_manager.toggle(PROJ_OPERATION::NOTHING);
 		}
 
 		if (flags.find("P") != std::string::npos) {
@@ -79,7 +79,7 @@ void customCallback(obs_frontend_event event, void* private_data) {
 bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully");
 
-	jw_manger.setGlobalConfig(obs_frontend_get_global_config());
+	jw_manager.setGlobalConfig(obs_frontend_get_global_config());
 
 	// Register events
 	obs_frontend_add_event_callback(customCallback, nullptr);
@@ -88,6 +88,7 @@ bool obs_module_load(void) {
 }
 
 void obs_module_unload() {
+	jw_manager.stop();
 	blog(LOG_INFO, "plugin unloaded");
 }
 
