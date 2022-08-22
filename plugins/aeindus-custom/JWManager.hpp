@@ -28,5 +28,7 @@ public:
 	}
 
 	void toggle(PROJ_OPERATION operation);
+
+	void stop();
 };
 

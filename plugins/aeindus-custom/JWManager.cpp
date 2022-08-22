@@ -16,8 +16,9 @@ bool JWManager::matchProjector(WINDOW_DATA descriptor) {
 }
 
 void JWManager::runner() {
-	while (!shutdown_event) {
-		Sleep(2000);
+	while (true) {
+		SPIN_LOCK(shutdown_event, 2000, 100);
+		if(shutdown_event) return;
 
 		// ----------- Guard access -----------
 		std::lock_guard<std::mutex> guard(lock_projector_access);
@@ -53,7 +54,7 @@ JWManager::~JWManager() {
 	shutdown_event = true;
 
 	try {
-		manager.join();
+		if(manager.joinable()) manager.join();
 	} catch (...) {
 		blog(LOG_WARNING, "Thread join returned exception");
 	}
@@ -68,3 +69,12 @@ void JWManager::toggle(PROJ_OPERATION operation) {
 	internalToggle(operation);
 }
 
+void JWManager::stop() {
+	shutdown_event = true;
+
+	try {
+		if(manager.joinable()) manager.join();
+	} catch (...) {
+		blog(LOG_WARNING, "Thread join returned exception");
+	}
+}
