@@ -19,7 +19,8 @@ Cuvinte cheie cautate in numele scenei:
 (poate fi folosita orice combinatie dintre **JW**, **P** si **V**)
 
 Cand nu este folosita, camera virtuala afiseaza o imagine standard. Aceasta a fost inlocuita cu textul anului.
-Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow\\data\\placeholder.png** si recompilati.
+Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow\\data\\placeholder.png**. Nu e necesara recompilarea ci se poate face direct in folderul local. Cu toate acestea camera nu trebuie sa fie folosita de vreo aplicatie pentru ca imaginea sa fie actualizata.
+
 
 .. table:: Obs scenes table
     :widths: auto
