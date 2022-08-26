@@ -9005,9 +9005,6 @@ void OBSBasic::CloseProjectors(int monitor)
 	for (size_t i = projectors.size(); i > 0; i--) {
 		size_t idx = i - 1;
 		if (projectors[idx]->GetMonitor() == monitor) {
-			// Do not use directly DeleteProjector because there's an "allProjectors"
-			// array used in window-projector which still holds a reference
-			// Fixed the destructor for now so you can call it.
 			DeleteProjector(projectors[idx]);
 		}
 	}

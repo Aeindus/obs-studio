@@ -118,8 +118,6 @@ OBSProjector::~OBSProjector()
 		multiviewProjectors.removeAll(this);
 	}
 
-	allProjectors.removeAll(this);
-
 	App()->DecrementSleepInhibition();
 
 	screen = nullptr;
@@ -303,11 +301,6 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 }
 
 void OBSProjector::EscapeTriggered()
-{
-	CloseProjector();
-}
-
-void OBSProjector::CloseProjector()
 {
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	main->DeleteProjector(this);
