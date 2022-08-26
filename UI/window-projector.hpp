@@ -40,7 +40,6 @@ private:
 
 	void UpdateMultiview();
 	void UpdateProjectorTitle(QString name);
-	void CloseProjector();
 
 	QRect prevGeometry;
 	void SetMonitor(int monitor);
