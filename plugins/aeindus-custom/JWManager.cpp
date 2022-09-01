@@ -65,6 +65,10 @@ void JWManager::toggle(PROJ_OPERATION operation) {
 	std::lock_guard<std::mutex> guard(lock_projector_access);
 	// ----------- Guard access -----------
 
+	// We do this in order to prevent unnecesarily flasing of the projector
+	// if it already is in the requested state
+	if(desired_state == operation) return;
+
 	desired_state = operation;
 	internalToggle(operation);
 }
