@@ -18,13 +18,12 @@ goto restore_and_run
 	rmdir /S /Q %backup_path% > nul
 	if exist "%backup_path%" (
 		echo Backup delete failed! Most likely the files in backup folder are in use.
-		timeout 5
 	)
 	xcopy "%obs_data_path%\*.*" "%backup_path%\"  /E /Y /R /I
 	for %%i in ("%backup_path%\scenes\*.json") do (
 		echo Backed up profile %%i
 	)
-	timeout 4
+	timeout 2
 	exit
 	
 :restore_and_run
@@ -35,17 +34,14 @@ goto restore_and_run
 :restore
 	if not exist "%backup_path%" (
 		echo No backup folder was found
-		timeout 4
+		pause
 		exit /b 
 	)
 	xcopy "%backup_path%\*.*" "%obs_data_path%\" /E /Y /R /I
 	for %%i in ("%backup_path%\scenes\*.json") do (
 		echo Restored profile %%i
 	)
-	if not exist "%backup_path%\scenes\Untitled.json" (
-		echo Warning: No default profile scenes\Untitled.json was found
-	) 
-	timeout 4
+	timeout 2
 	exit /b
 	
 :run
