@@ -88,10 +88,10 @@ mark_as_advanced(BUILD_TESTS USE_LIBCXX)
 
 # Install custom run script when building and for the final packaging
 install(
-  FILES ${CMAKE_SOURCE_DIR}/restore_and_run.bat
+  FILES ${CMAKE_SOURCE_DIR}/RunOBS.bat
   DESTINATION ".")
 install(
-  FILES ${CMAKE_SOURCE_DIR}/restore_and_run.bat
+  FILES ${CMAKE_SOURCE_DIR}/RunOBS.bat
   DESTINATION ${OBS_OUTPUT_DIR}/$<CONFIG>
   COMPONENT obs_rundir)
 
