@@ -48,16 +48,16 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 |                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                                                              |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 
-* **JWScena 3**
+* **JWScena 2**
 
   * *Captura Monitor Secundar* trebuie sa foloseasca ca metoda de captura *DXGI Desktop Duplication*. Altfel va aparea o bordura galbena pe marginea monitorului
 
-* **PScena 4**
+* **PScena 3**
 
   * Sursa de imagini ascunsa este pe post de backup. Unele formate de imagini si de video nu pot fi redate prin browser asadar pentru cazurile exceptionale va fi folosita aceasta sursa. Cu toate acestea, sursa de video Vlc Slideshow nu poate fi folosita ca backup deoarece nu reda audio-ul prin difuzoare ci doar prin mixerul din OBS.
   * Browserul trebuie sa aiba activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.
 
-* **VPScena 5** 
+* **VPScena 4** 
 
   * Prima sursa va captura fereastra a 3-a a Zoomului. In lista de procese apare intotdeauna un proces numit *[Zoom] Projector Window* care trebuie selectat. Insa daca optiunea *Use Dual Monitors* nu a fost activata inainte de inceperea sesiunii atunci proiectorul din Zoom nu mai poate fi deschis (limitare a Zoom-ului). In acest caz se va apela la a doua captura care va inregistra fereastra de dashboard a Zoom-ului.
   * A doua captura ascunsa e pe post de backup si inregistreaza fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop pentru a ascunde controalele.
@@ -73,6 +73,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 * **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
+* **Settings > Advanced > General > Show active outputs warning on exit** trebuie setat pe fals. Altfel daca camera virtuala e folosita OBS va afisa intotdeauna un dialog "Are you sure?" la inchidere.
 
 Development
 -------------------
