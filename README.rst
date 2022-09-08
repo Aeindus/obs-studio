@@ -32,7 +32,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 | JWScena 1 Podium               | - Camera Sala                             | - Microfoane Sala                   | - Standard. Folosit in timpul intrunirii.                                                             |
 |                                |                                           |                                     | - Se poate raspunde pe Zoom si din sala.                                                              |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
-| JWScena 2 Videoclip pe Zoom    | - Captura Monitor Secundar                | - Microfoane Sala                   | - Folosit pentru prezentarea unui video din JW.                                                       |
+| JWScena 2 Prezentare JWLibrary | - Captura Monitor Secundar                | - Microfoane Sala                   | - Folosit pentru prezentarea unui video din JW.                                                       |
 |                                | (Display Capture)                         | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                                              |
 |                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
@@ -41,7 +41,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 |                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | VPScena 4 Cuvantare de pe Zoom | - Captura proiector Zoom (Window Capture) |                                     | - Folosit pentru o cuvantare/demonstratie de pe Zoom.                                                 |
-|                                | - Captura dashboard Zoom                  |                                     | - Video-ul catre Zoom e inchis.                                                                       |
+|                                | - Captura dashboard Zoom **ascuns**       |                                     | - Video-ul catre Zoom e inchis.                                                                       |
 |                                |                                           |                                     | - Audio-ul catre Zoom e inchis.                                                                       |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | PScena 5 Altele                | - Captura fereastra                       | - Microfoane Sala                   | - Folosit pentru orice alta necesitate: captura unei aplicatii, captura unei portiuni din ecran, etc. |
@@ -78,7 +78,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 Development
 -------------------
 
-Submodules are a headache. If after a merge there are modified/changed files belonging to a submodule then follow these instructions: https://stackoverflow.com/a/32581852/3971417.
+Submodules are hard to use. If after a merge there are modified/changed files belonging to a submodule then follow these instructions: https://stackoverflow.com/a/32581852/3971417.
 
 The folder plugins/win-capture-audio contains a compiled version of `win-capture-audio <https://github.com/bozbez/win-capture-audio/>`_. The files within must be replaced from time to time (copy-paste).
 
