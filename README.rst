@@ -78,7 +78,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 Development
 -------------------
 
-Submodules are a headache. If after a merge there are modified/changed files belonging to a submodule then follow these instructions: https://stackoverflow.com/a/32581852/3971417.
+Submodules are hard to use. If after a merge there are modified/changed files belonging to a submodule then follow these instructions: https://stackoverflow.com/a/32581852/3971417.
 
 The folder plugins/win-capture-audio contains a compiled version of `win-capture-audio <https://github.com/bozbez/win-capture-audio/>`_. The files within must be replaced from time to time (copy-paste).
 
