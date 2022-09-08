@@ -63,7 +63,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   * A doua captura ascunsa e pe post de backup si inregistreaza fereastra de dashboard a Zoom-ului. Partea de jos a capturii poate fi taiata prin crop pentru a ascunde controalele.
   * La ambele surse metoda de captare trebuie setata in proprietati la *Windows 10 (1903 and up)*.
   
-* **PScena 6**
+* **PScena 5**
 
   * Folosit pentru orice eventualitate. Se pot captura portiuni din ecran, audio de la alte aplicatii, surse video, camere, etc.
   
