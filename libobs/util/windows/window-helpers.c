@@ -451,13 +451,36 @@ static int window_rating(HWND window, enum window_priority priority,
 	struct dstr cur_exe = {0};
 	int val = 0x7FFFFFFF;
 
-	if (strstr(title, PROJECTOR_WINDOW)) {
+	if (strstr(exe, ZOOM_EXE)) {
 		struct WINDOW_DATA descriptor = getWindowDescription(window);
-		if (strstr(exe, ZOOM_EXE) && matchZoomProjector(descriptor))
-			return 0;
-		if (strstr(exe, JW_EXE) && matchJWProjector(descriptor))
-			return 0;
-		return 0x7FFFFFFF;
+
+		if (matchZoomProjector(descriptor)) {
+			if (strstr(title, PROJECTOR_WINDOW)) {
+				// We requested the projector window
+				// and the window is indeed a projector
+				return 0;
+			} else {
+				// We did not request the projector window
+				// but the window is the projector
+				return 0x7FFFFFFF;
+			}
+		}
+	}
+
+	if (strstr(exe, JW_EXE)) {
+		struct WINDOW_DATA descriptor = getWindowDescription(window);
+
+		if (matchJWProjector(descriptor)) {
+			if (strstr(title, PROJECTOR_WINDOW)) {
+				// We requested the projector window
+				// and the window is indeed a projector
+				return 0;
+			} else {
+				// We did not request the projector window
+				// but the window is the projector
+				return 0x7FFFFFFF;
+			}
+		}
 	}
 
 	if (!ms_get_window_exe(&cur_exe, window))
