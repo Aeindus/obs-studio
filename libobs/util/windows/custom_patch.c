@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <WinUser.h>
 #include <dwmapi.h>
 #include <stdlib.h>
 #include <util/dstr.h>
@@ -33,19 +34,34 @@ struct WINDOW_DATA getWindowDescription(HWND hwnd)
 
 	monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
 	monitor_info.cbSize = sizeof(monitor_info);
-
-	GetClassNameA(hwnd, descriptor.class_name,
-		      sizeof(descriptor.class_name));
-	GetWindowTextA(hwnd, descriptor.caption_name,
-		       sizeof(descriptor.caption_name));
 	GetMonitorInfo(monitor, &monitor_info);
 
+	descriptor.pid = 1; // Needed to request thread id instead of process id
 	descriptor.hwnd = hwnd;
 	descriptor.tid = GetWindowThreadProcessId(hwnd, &descriptor.pid);
 	descriptor.monitor_id = (uint64_t)monitor;
 	descriptor.visible_on_screen = isWindowVisibleOnScreen(hwnd);
 	descriptor.primary_monitor =
 		(monitor_info.dwFlags == MONITORINFOF_PRIMARY);
+
+	// If GetWindowTextA() is called on a window spawned by obs
+	// then everything freezes.
+	// Most probably because that window is waiting for this thread to finish or signal
+	// in order to continue receive messages
+	// but this Get operation sends a mesage to the window for its title.
+	// Result: deadlock. This is a solution
+	DWORD current_pid = GetProcessId(GetCurrentProcess());
+	if (current_pid != descriptor.pid) {
+		GetClassNameA(hwnd, descriptor.class_name,
+			      sizeof(descriptor.class_name));
+		GetWindowTextA(hwnd, descriptor.caption_name,
+			       sizeof(descriptor.caption_name));
+	} else {
+		ZeroMemory(descriptor.class_name,
+			   sizeof(descriptor.class_name));
+		ZeroMemory(descriptor.caption_name,
+			   sizeof(descriptor.caption_name));
+	}
 
 	return descriptor;
 }
