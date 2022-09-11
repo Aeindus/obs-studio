@@ -1,5 +1,4 @@
 #include <Windows.h>
-#include <WinUser.h>
 #include <dwmapi.h>
 #include <stdlib.h>
 #include <util/dstr.h>
