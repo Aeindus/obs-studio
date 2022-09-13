@@ -37,11 +37,11 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 |                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | PScena 3 Prezentare Media      | - Browser                                 | - Microfoane Sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini).                                          |
-|                                | - Imagini (Image Slideshow) **ascuns**    | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                                              |
+|                                |                                           | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                                              |
 |                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | VPScena 4 Cuvantare de pe Zoom | - Captura proiector Zoom (Window Capture) |                                     | - Folosit pentru o cuvantare/demonstratie de pe Zoom.                                                 |
-|                                | - Captura dashboard Zoom **ascuns**       |                                     | - Video-ul catre Zoom e inchis.                                                                       |
+|                                | - Captura dashboard Zoom [**ascuns**]     |                                     | - Video-ul catre Zoom e inchis.                                                                       |
 |                                |                                           |                                     | - Audio-ul catre Zoom e inchis.                                                                       |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | PScena 5 Altele                | - Captura fereastra                       | - Microfoane Sala                   | - Folosit pentru orice alta necesitate: captura unei aplicatii, captura unei portiuni din ecran, etc. |
@@ -59,13 +59,7 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   * Configuratie *Browser*:
   
     * *width:1920px* si *height:1080px*.
-    * activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.
-    
-  * Configuratie *Imagini*:
-    
-    * *Visibility Behaviour* setat pe *Pause when not visible, unpause when visible*.
-    * *Slide Mode* setat pe *Manual*.
-    
+    * activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.    
 
 * **VPScena 4** 
 
