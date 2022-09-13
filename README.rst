@@ -5,9 +5,9 @@ OBS Studio <https://obsproject.com>
    :alt: OBS Studio Build Status - GitHub Actions
    :target: https://github.com/Aeindus/obs-studio/actions/workflows/main.yml?query=event%3Apush+branch%3Amaster
 
-Customized version of obs. Master branch contains a number of improvements over "stable" release branch. For this reason all builds are made 
+Customized version of OBS. Master branch contains a number of improvements over "stable" release branch. For this reason all builds are made 
 from the master branch.
-Automatic updates disabled (do not update manually).
+Automatic updates are disabled (do not update manually).
 
 Documentatie
 ------------------
