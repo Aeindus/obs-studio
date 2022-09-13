@@ -77,8 +77,6 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 
 * **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
-* **Settings > Advanced > General > Show active outputs warning on exit** trebuie setat pe fals. Altfel daca camera virtuala e folosita OBS va afisa intotdeauna un dialog "Are you sure?" la inchidere.
-
 Development
 -------------------
 
