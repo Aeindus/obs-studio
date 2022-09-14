@@ -53,9 +53,8 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   * *Captura Monitor Secundar* trebuie sa foloseasca ca metoda de captura *DXGI Desktop Duplication*. Altfel va aparea o bordura galbena pe marginea monitorului
 
 * **PScena 3**
-
-  * Sursa de imagini ascunsa este pe post de backup. Unele formate de imagini si de video nu pot fi redate prin browser asadar pentru cazurile exceptionale va fi folosita aceasta sursa. Totodata, sursa de video *VLC Slideshow* nu poate fi folosita ca backup deoarece nu reda audio-ul prin difuzoare ci doar prin mixerul din OBS.
-  * Va fi creat un folder in desktop care va fi adaugat ca sursa de materiale la *Browser* si *Imagini*.
+ 
+  * Va fi creat un folder in desktop care va fi adaugat ca sursa de materiale la *Browser*.
   * Configuratie *Browser*:
   
     * *width:1920px* si *height:1080px*.
