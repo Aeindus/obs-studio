@@ -72,9 +72,10 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   
 |
 
+* **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
+
 * Sursa **Browser** a fost modificata. Se pot afisa fisiere, foldere sau url-uri. Videoclipurile pot fi pornite sau puse pe pauza cu ajutorul butonului din bara de control (Next, Stop, Previous). Numele fisierului in derulare este afisat tot in bara. Pentru pdf-uri se poate reactiva bordura de sus a editorului din proprietati (optiunea *Show pdf toolbar*).
 
-* **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
 Development
 -------------------
