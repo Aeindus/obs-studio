@@ -5,9 +5,9 @@ OBS Studio <https://obsproject.com>
    :alt: OBS Studio Build Status - GitHub Actions
    :target: https://github.com/Aeindus/obs-studio/actions/workflows/main.yml?query=event%3Apush+branch%3Amaster
 
-Customized version of obs. Master branch contains a number of improvements over "stable" release branch. For this reason all builds are made 
+Customized version of OBS. Master branch contains a number of improvements over "stable" release branch. For this reason all builds are made 
 from the master branch.
-Automatic updates disabled (do not update manually).
+Automatic updates are disabled (do not update manually).
 
 Documentatie
 ------------------
@@ -37,11 +37,11 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
 |                                |                                           | (application audio output capture)  | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | PScena 3 Prezentare Media      | - Browser                                 | - Microfoane Sala                   | - Folosit pentru prezentarea multimedia (pdf/video/imagini).                                          |
-|                                | - Imagini (Image Slideshow) **ascuns**    | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                                              |
+|                                |                                           | - Audio PC fara Zoom                | - Se poate raspunde pe Zoom si din sala.                                                              |
 |                                |                                           |                                     | - Audio generat de Windows este transmis catre Zoom.                                                  |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | VPScena 4 Cuvantare de pe Zoom | - Captura proiector Zoom (Window Capture) |                                     | - Folosit pentru o cuvantare/demonstratie de pe Zoom.                                                 |
-|                                | - Captura dashboard Zoom **ascuns**       |                                     | - Video-ul catre Zoom e inchis.                                                                       |
+|                                | - Captura dashboard Zoom [**ascuns**]     |                                     | - Video-ul catre Zoom e inchis.                                                                       |
 |                                |                                           |                                     | - Audio-ul catre Zoom e inchis.                                                                       |
 +--------------------------------+-------------------------------------------+-------------------------------------+-------------------------------------------------------------------------------------------------------+
 | PScena 5 Altele                | - Captura fereastra                       | - Microfoane Sala                   | - Folosit pentru orice alta necesitate: captura unei aplicatii, captura unei portiuni din ecran, etc. |
@@ -53,19 +53,12 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   * *Captura Monitor Secundar* trebuie sa foloseasca ca metoda de captura *DXGI Desktop Duplication*. Altfel va aparea o bordura galbena pe marginea monitorului
 
 * **PScena 3**
-
-  * Sursa de imagini ascunsa este pe post de backup. Unele formate de imagini si de video nu pot fi redate prin browser asadar pentru cazurile exceptionale va fi folosita aceasta sursa. Totodata, sursa de video *VLC Slideshow* nu poate fi folosita ca backup deoarece nu reda audio-ul prin difuzoare ci doar prin mixerul din OBS.
-  * Va fi creat un folder in desktop care va fi adaugat ca sursa de materiale la *Browser* si *Imagini*.
+ 
+  * Va fi creat un folder in desktop care va fi adaugat ca sursa de materiale la *Browser*.
   * Configuratie *Browser*:
   
     * *width:1920px* si *height:1080px*.
-    * activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.
-    
-  * Configuratie *Imagini*:
-    
-    * *Visibility Behaviour* setat pe *Pause when not visible, unpause when visible*.
-    * *Slide Mode* setat pe *Manual*.
-    
+    * activata optiunea *Shutdown source when not visible*. Altfel orice video sau audio continua sa se fie redat chiar si cand se schimba scena cu alta.    
 
 * **VPScena 4** 
 
@@ -79,11 +72,10 @@ Pentru a modifica textul anului, updatati fisierul de aici: **plugins\\win-dshow
   
 |
 
-* Sursa **Browser** a fost modificata. Se pot afisa fisiere, foldere sau url-uri. Videoclipurile pot fi pornite sau puse pe pauza cu ajutorul butonului din bara de control (Next, Stop, Previous). Numele fisierului in derulare este afisat tot in bara. Pentru pdf-uri se poate reactiva bordura de sus a editorului din proprietati (optiunea *Show pdf toolbar*).
-
 * **Audio PC fara Zoom** foloseste pluginul extern *Application Audio Output Capture*. Sursa audio **trebuie** sa excluda *Zoom.exe* si *obs64.exe*.
 
-* **Settings > Advanced > General > Show active outputs warning on exit** trebuie setat pe fals. Altfel daca camera virtuala e folosita OBS va afisa intotdeauna un dialog "Are you sure?" la inchidere.
+* Sursa **Browser** a fost modificata. Se pot afisa fisiere, foldere sau url-uri. Videoclipurile pot fi pornite sau puse pe pauza cu ajutorul butonului din bara de control (Next, Stop, Previous). Numele fisierului in derulare este afisat tot in bara. Pentru pdf-uri se poate reactiva bordura de sus a editorului din proprietati (optiunea *Show pdf toolbar*).
+
 
 Development
 -------------------
