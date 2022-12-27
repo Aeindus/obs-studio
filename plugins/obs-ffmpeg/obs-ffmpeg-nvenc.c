@@ -39,6 +39,10 @@ struct nvenc_encoder {
 	DARRAY(uint8_t) sei;
 };
 
+#ifdef __linux__
+extern bool ubuntu_20_04_nvenc_fallback;
+#endif
+
 #define ENCODER_NAME_H264 "NVIDIA NVENC H.264 (FFmpeg)"
 static const char *h264_nvenc_getname(void *unused)
 {
@@ -122,6 +126,12 @@ static bool nvenc_update(struct nvenc_encoder *enc, obs_data_t *settings,
 		rc = "CBR";
 	}
 
+#ifdef __linux__
+	bool use_old_nvenc = ubuntu_20_04_nvenc_fallback;
+#else
+#define use_old_nvenc false
+#endif
+
 	info.format = voi->format;
 	info.colorspace = voi->colorspace;
 	info.range = voi->range;
@@ -131,8 +141,8 @@ static bool nvenc_update(struct nvenc_encoder *enc, obs_data_t *settings,
 	av_opt_set_int(enc->ffve.context->priv_data, "cbr", false, 0);
 	av_opt_set(enc->ffve.context->priv_data, "profile", profile, 0);
 
-	if (obs_data_has_user_value(settings, "preset") &&
-	    !obs_data_has_user_value(settings, "preset2")) {
+	if (use_old_nvenc || (obs_data_has_user_value(settings, "preset") &&
+			      !obs_data_has_user_value(settings, "preset2"))) {
 
 		if (astrcmpi(preset, "mq") == 0) {
 			preset = "hq";
@@ -408,6 +418,7 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 enum codec_type {
 	CODEC_H264,
 	CODEC_HEVC,
+	CODEC_AV1,
 };
 
 static void nvenc_defaults_base(enum codec_type codec, obs_data_t *settings)
@@ -417,11 +428,11 @@ static void nvenc_defaults_base(enum codec_type codec, obs_data_t *settings)
 	obs_data_set_default_int(settings, "keyint_sec", 0);
 	obs_data_set_default_int(settings, "cqp", 20);
 	obs_data_set_default_string(settings, "rate_control", "CBR");
-	obs_data_set_default_string(settings, "preset2", "p6");
+	obs_data_set_default_string(settings, "preset2", "p5");
 	obs_data_set_default_string(settings, "multipass", "qres");
 	obs_data_set_default_string(settings, "tune", "hq");
 	obs_data_set_default_string(settings, "profile",
-				    codec == CODEC_HEVC ? "main" : "high");
+				    codec != CODEC_H264 ? "main" : "high");
 	obs_data_set_default_bool(settings, "psycho_aq", true);
 	obs_data_set_default_int(settings, "gpu", 0);
 	obs_data_set_default_int(settings, "bf", 2);
@@ -436,6 +447,11 @@ void h264_nvenc_defaults(obs_data_t *settings)
 void hevc_nvenc_defaults(obs_data_t *settings)
 {
 	nvenc_defaults_base(CODEC_HEVC, settings);
+}
+
+void av1_nvenc_defaults(obs_data_t *settings)
+{
+	nvenc_defaults_base(CODEC_AV1, settings);
 }
 
 static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p,
@@ -465,6 +481,12 @@ obs_properties_t *nvenc_properties_internal(enum codec_type codec, bool ffmpeg)
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *p;
 
+#ifdef __linux__
+	bool use_old_nvenc = ubuntu_20_04_nvenc_fallback;
+#else
+#define use_old_nvenc false
+#endif
+
 	p = obs_properties_add_list(props, "rate_control",
 				    obs_module_text("RateControl"),
 				    OBS_COMBO_TYPE_LIST,
@@ -486,53 +508,67 @@ obs_properties_t *nvenc_properties_internal(enum codec_type codec, bool ffmpeg)
 	obs_property_int_set_suffix(p, " Kbps");
 
 	obs_properties_add_int(props, "cqp", obs_module_text("NVENC.CQLevel"),
-			       1, 51, 1);
+			       1, codec == CODEC_AV1 ? 63 : 51, 1);
 
 	p = obs_properties_add_int(props, "keyint_sec",
 				   obs_module_text("KeyframeIntervalSec"), 0,
 				   10, 1);
 	obs_property_int_set_suffix(p, " s");
 
-	p = obs_properties_add_list(props, "preset2", obs_module_text("Preset"),
+	p = obs_properties_add_list(props, use_old_nvenc ? "preset" : "preset2",
+				    obs_module_text("Preset"),
 				    OBS_COMBO_TYPE_LIST,
 				    OBS_COMBO_FORMAT_STRING);
 
 #define add_preset(val)                                                        \
 	obs_property_list_add_string(p, obs_module_text("NVENC.Preset2." val), \
 				     val)
-	add_preset("p1");
-	add_preset("p2");
-	add_preset("p3");
-	add_preset("p4");
-	add_preset("p5");
-	add_preset("p6");
-	add_preset("p7");
+	if (use_old_nvenc) {
+		add_preset("mq");
+		add_preset("hq");
+		add_preset("default");
+		add_preset("hp");
+		add_preset("ll");
+		add_preset("llhq");
+		add_preset("llhp");
+	} else {
+		add_preset("p1");
+		add_preset("p2");
+		add_preset("p3");
+		add_preset("p4");
+		add_preset("p5");
+		add_preset("p6");
+		add_preset("p7");
+	}
 #undef add_preset
 
-	p = obs_properties_add_list(props, "tune", obs_module_text("Tuning"),
-				    OBS_COMBO_TYPE_LIST,
-				    OBS_COMBO_FORMAT_STRING);
+	if (!use_old_nvenc) {
+		p = obs_properties_add_list(props, "tune",
+					    obs_module_text("Tuning"),
+					    OBS_COMBO_TYPE_LIST,
+					    OBS_COMBO_FORMAT_STRING);
 
 #define add_tune(val)                                                         \
 	obs_property_list_add_string(p, obs_module_text("NVENC.Tuning." val), \
 				     val)
-	add_tune("hq");
-	add_tune("ll");
-	add_tune("ull");
+		add_tune("hq");
+		add_tune("ll");
+		add_tune("ull");
 #undef add_tune
 
-	p = obs_properties_add_list(props, "multipass",
-				    obs_module_text("NVENC.Multipass"),
-				    OBS_COMBO_TYPE_LIST,
-				    OBS_COMBO_FORMAT_STRING);
+		p = obs_properties_add_list(props, "multipass",
+					    obs_module_text("NVENC.Multipass"),
+					    OBS_COMBO_TYPE_LIST,
+					    OBS_COMBO_FORMAT_STRING);
 
 #define add_multipass(val)            \
 	obs_property_list_add_string( \
 		p, obs_module_text("NVENC.Multipass." val), val)
-	add_multipass("disabled");
-	add_multipass("qres");
-	add_multipass("fullres");
+		add_multipass("disabled");
+		add_multipass("qres");
+		add_multipass("fullres");
 #undef add_multipass
+	}
 
 	p = obs_properties_add_list(props, "profile",
 				    obs_module_text("Profile"),
@@ -542,6 +578,8 @@ obs_properties_t *nvenc_properties_internal(enum codec_type codec, bool ffmpeg)
 #define add_profile(val) obs_property_list_add_string(p, val, val)
 	if (codec == CODEC_HEVC) {
 		add_profile("main10");
+		add_profile("main");
+	} else if (codec == CODEC_AV1) {
 		add_profile("main");
 	} else {
 		add_profile("high");
@@ -586,6 +624,12 @@ obs_properties_t *hevc_nvenc_properties(void *unused)
 	return nvenc_properties_internal(CODEC_HEVC, false);
 }
 #endif
+
+obs_properties_t *av1_nvenc_properties(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return nvenc_properties_internal(CODEC_AV1, false);
+}
 
 obs_properties_t *h264_nvenc_properties_ffmpeg(void *unused)
 {

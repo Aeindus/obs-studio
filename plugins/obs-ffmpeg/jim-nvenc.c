@@ -11,6 +11,32 @@
 #include <obs-hevc.h>
 
 /* ========================================================================= */
+/* a hack of the ages: nvenc backward compatibility                          */
+
+#define CONFIGURED_NVENC_MAJOR 12
+#define CONFIGURED_NVENC_MINOR 0
+#define CONFIGURED_NVENC_VER \
+	(CONFIGURED_NVENC_MAJOR | (CONFIGURED_NVENC_MINOR << 24))
+
+/* we cannot guarantee structures haven't changed, so purposely break on
+ * version change to force the programmer to update or remove backward
+ * compatibility NVENC code. */
+#if CONFIGURED_NVENC_VER != NVENCAPI_VERSION
+#error NVENC version changed, update or remove NVENC compatibility code
+#endif
+
+#undef NVENCAPI_STRUCT_VERSION
+#define NVENCAPI_STRUCT_VERSION(ver)                              \
+	((uint32_t)(enc->codec == CODEC_AV1 ? NVENCAPI_VERSION    \
+					    : NVENC_COMPAT_VER) | \
+	 ((ver) << 16) | (0x7 << 28))
+
+#define NV_ENC_CONFIG_COMPAT_VER (NVENCAPI_STRUCT_VERSION(7) | (1 << 31))
+#define NV_ENC_PIC_PARAMS_COMPAT_VER (NVENCAPI_STRUCT_VERSION(4) | (1 << 31))
+#define NV_ENC_LOCK_BITSTREAM_COMPAT_VER NVENCAPI_STRUCT_VERSION(1)
+#define NV_ENC_REGISTER_RESOURCE_COMPAT_VER NVENCAPI_STRUCT_VERSION(3)
+
+/* ========================================================================= */
 
 #define EXTRA_BUFFERS 5
 
@@ -40,6 +66,7 @@ struct handle_tex {
 enum codec_type {
 	CODEC_H264,
 	CODEC_HEVC,
+	CODEC_AV1,
 };
 
 static const char *get_codec_name(enum codec_type type)
@@ -49,6 +76,8 @@ static const char *get_codec_name(enum codec_type type)
 		return "H264";
 	case CODEC_HEVC:
 		return "HEVC";
+	case CODEC_AV1:
+		return "AV1";
 	}
 
 	return "Unknown";
@@ -157,7 +186,11 @@ static bool nv_texture_init(struct nvenc_data *enc, struct nv_texture *nvtex)
 
 	tex->lpVtbl->SetEvictionPriority(tex, DXGI_RESOURCE_PRIORITY_MAXIMUM);
 
-	NV_ENC_REGISTER_RESOURCE res = {NV_ENC_REGISTER_RESOURCE_VER};
+	uint32_t struct_ver = enc->codec == CODEC_AV1
+				      ? NV_ENC_REGISTER_RESOURCE_VER
+				      : NV_ENC_REGISTER_RESOURCE_COMPAT_VER;
+
+	NV_ENC_REGISTER_RESOURCE res = {struct_ver};
 	res.resourceType = NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX;
 	res.resourceToRegister = tex;
 	res.width = enc->cx;
@@ -204,6 +237,12 @@ static const char *hevc_nvenc_get_name(void *type_data)
 	return "NVIDIA NVENC HEVC";
 }
 #endif
+
+static const char *av1_nvenc_get_name(void *type_data)
+{
+	UNUSED_PARAMETER(type_data);
+	return "NVIDIA NVENC AV1";
+}
 
 static inline int nv_get_cap(struct nvenc_data *enc, NV_ENC_CAPS cap)
 {
@@ -316,7 +355,8 @@ static bool init_session(struct nvenc_data *enc)
 		NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS_VER};
 	params.device = enc->device;
 	params.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
-	params.apiVersion = NVENCAPI_VERSION;
+	params.apiVersion = enc->codec == CODEC_AV1 ? NVENCAPI_VERSION
+						    : NVENC_COMPAT_VER;
 
 	if (NV_FAILED(nv.nvEncOpenEncodeSessionEx(&params, &enc->session))) {
 		return false;
@@ -324,28 +364,28 @@ static bool init_session(struct nvenc_data *enc)
 	return true;
 }
 
-static void initialize_params(NV_ENC_INITIALIZE_PARAMS *params,
-			      const GUID *nv_encode, const GUID *nv_preset,
+static void initialize_params(struct nvenc_data *enc, const GUID *nv_preset,
 			      NV_ENC_TUNING_INFO nv_tuning, uint32_t width,
 			      uint32_t height, uint32_t fps_num,
-			      uint32_t fps_den, NV_ENC_CONFIG *config)
+			      uint32_t fps_den)
 {
 	int darWidth, darHeight;
 	av_reduce(&darWidth, &darHeight, width, height, 1024 * 1024);
 
+	NV_ENC_INITIALIZE_PARAMS *params = &enc->params;
 	memset(params, 0, sizeof(*params));
 	params->version = NV_ENC_INITIALIZE_PARAMS_VER;
-	params->encodeGUID = *nv_encode;
+	params->encodeGUID = enc->codec_guid;
 	params->presetGUID = *nv_preset;
 	params->encodeWidth = width;
 	params->encodeHeight = height;
-	params->darWidth = darWidth;
-	params->darHeight = darHeight;
+	params->darWidth = enc->codec == CODEC_AV1 ? width : darWidth;
+	params->darHeight = enc->codec == CODEC_AV1 ? height : darHeight;
 	params->frameRateNum = fps_num;
 	params->frameRateDen = fps_den;
 	params->enableEncodeAsync = 0;
 	params->enablePTD = 1;
-	params->encodeConfig = config;
+	params->encodeConfig = &enc->config;
 	params->tuningInfo = nv_tuning;
 }
 
@@ -391,7 +431,7 @@ static inline NV_ENC_MULTI_PASS get_nv_multipass(const char *multipass)
 }
 
 static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
-			      int bf, bool psycho_aq, bool *lossless)
+			      int bf, bool compatibility, bool *lossless)
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	int bitrate = (int)obs_data_get_int(settings, "bitrate");
@@ -405,6 +445,8 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	const char *profile = obs_data_get_string(settings, "profile");
 	bool lookahead = obs_data_get_bool(settings, "lookahead");
 	bool vbr = astrcmpi(rc, "VBR") == 0;
+	bool psycho_aq = !compatibility &&
+			 obs_data_get_bool(settings, "psycho_aq");
 	NVENCSTATUS err;
 
 	video_t *video = obs_encoder_video(enc->encoder);
@@ -418,19 +460,27 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 
 	GUID nv_preset = get_nv_preset2(preset2);
 	NV_ENC_TUNING_INFO nv_tuning = get_nv_tuning(tuning);
-	NV_ENC_MULTI_PASS nv_multipass = get_nv_multipass(multipass);
+	NV_ENC_MULTI_PASS nv_multipass = compatibility
+						 ? NV_ENC_MULTI_PASS_DISABLED
+						 : get_nv_multipass(multipass);
 
 	if (obs_data_has_user_value(settings, "preset") &&
-	    !obs_data_has_user_value(settings, "preset2")) {
-		if (astrcmpi(preset, "hq") == 0) {
+	    !obs_data_has_user_value(settings, "preset2") &&
+	    enc->codec == CODEC_H264) {
+		if (astrcmpi(preset, "mq") == 0) {
 			nv_preset = NV_ENC_PRESET_P5_GUID;
 			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
 			nv_multipass = NV_ENC_TWO_PASS_QUARTER_RESOLUTION;
 
-		} else if (astrcmpi(preset, "mq") == 0) {
-			nv_preset = NV_ENC_PRESET_P4_GUID;
+		} else if (astrcmpi(preset, "hq") == 0) {
+			nv_preset = NV_ENC_PRESET_P5_GUID;
 			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
-			nv_multipass = NV_ENC_TWO_PASS_QUARTER_RESOLUTION;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "default") == 0) {
+			nv_preset = NV_ENC_PRESET_P3_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
 
 		} else if (astrcmpi(preset, "hp") == 0) {
 			nv_preset = NV_ENC_PRESET_P1_GUID;
@@ -445,7 +495,45 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 		} else if (astrcmpi(preset, "llhq") == 0) {
 			nv_preset = NV_ENC_PRESET_P4_GUID;
 			nv_tuning = NV_ENC_TUNING_INFO_LOW_LATENCY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "llhp") == 0) {
+			nv_preset = NV_ENC_PRESET_P2_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_LOW_LATENCY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+		}
+	} else if (obs_data_has_user_value(settings, "preset") &&
+		   !obs_data_has_user_value(settings, "preset2") &&
+		   enc->codec == CODEC_HEVC) {
+		if (astrcmpi(preset, "mq") == 0) {
+			nv_preset = NV_ENC_PRESET_P6_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
 			nv_multipass = NV_ENC_TWO_PASS_QUARTER_RESOLUTION;
+
+		} else if (astrcmpi(preset, "hq") == 0) {
+			nv_preset = NV_ENC_PRESET_P6_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "default") == 0) {
+			nv_preset = NV_ENC_PRESET_P5_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "hp") == 0) {
+			nv_preset = NV_ENC_PRESET_P1_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_HIGH_QUALITY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "ll") == 0) {
+			nv_preset = NV_ENC_PRESET_P3_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_LOW_LATENCY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
+
+		} else if (astrcmpi(preset, "llhq") == 0) {
+			nv_preset = NV_ENC_PRESET_P4_GUID;
+			nv_tuning = NV_ENC_TUNING_INFO_LOW_LATENCY;
+			nv_multipass = NV_ENC_MULTI_PASS_DISABLED;
 
 		} else if (astrcmpi(preset, "llhp") == 0) {
 			nv_preset = NV_ENC_PRESET_P2_GUID;
@@ -473,8 +561,12 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	/* -------------------------- */
 	/* get preset default config  */
 
+	uint32_t config_ver = enc->codec == CODEC_AV1
+				      ? NV_ENC_CONFIG_VER
+				      : NV_ENC_CONFIG_COMPAT_VER;
+
 	NV_ENC_PRESET_CONFIG preset_config = {NV_ENC_PRESET_CONFIG_VER,
-					      {NV_ENC_CONFIG_VER}};
+					      {config_ver}};
 
 	err = nv.nvEncGetEncodePresetConfigEx(enc->session, enc->codec_guid,
 					      nv_preset, nv_tuning,
@@ -494,9 +586,8 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 
 	NV_ENC_CONFIG *config = &enc->config;
 
-	initialize_params(&enc->params, &enc->codec_guid, &nv_preset, nv_tuning,
-			  voi->width, voi->height, voi->fps_num, voi->fps_den,
-			  &enc->config);
+	initialize_params(enc, &nv_preset, nv_tuning, voi->width, voi->height,
+			  voi->fps_num, voi->fps_den);
 
 	config->gopLength = gop_size;
 	config->frameIntervalP = 1 + bf;
@@ -540,12 +631,14 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	}
 
 	/* psycho aq */
-	if (nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_TEMPORAL_AQ)) {
-		config->rcParams.enableAQ = psycho_aq;
-		config->rcParams.aqStrength = 8;
-		config->rcParams.enableTemporalAQ = psycho_aq;
-	} else if (psycho_aq) {
-		warn("Ignoring Psycho Visual Tuning request since GPU is not capable");
+	if (!compatibility) {
+		if (nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_TEMPORAL_AQ)) {
+			config->rcParams.enableAQ = psycho_aq;
+			config->rcParams.aqStrength = 8;
+			config->rcParams.enableTemporalAQ = psycho_aq;
+		} else {
+			warn("Ignoring Psycho Visual Tuning request since GPU is not capable");
+		}
 	}
 
 	/* -------------------------- */
@@ -561,10 +654,12 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 		if (*lossless)
 			cqp = 0;
 
+		int cqp_val = enc->codec == CODEC_AV1 ? cqp * 4 : cqp;
+
 		config->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CONSTQP;
-		config->rcParams.constQP.qpInterP = cqp;
-		config->rcParams.constQP.qpInterB = cqp;
-		config->rcParams.constQP.qpIntra = cqp;
+		config->rcParams.constQP.qpInterP = cqp_val;
+		config->rcParams.constQP.qpInterB = cqp_val;
+		config->rcParams.constQP.qpIntra = cqp_val;
 		enc->can_change_bitrate = false;
 
 		bitrate = 0;
@@ -605,14 +700,14 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 }
 
 static bool init_encoder_h264(struct nvenc_data *enc, obs_data_t *settings,
-			      int bf, bool psycho_aq)
+			      int bf, bool compatibility)
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	int keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
 	const char *profile = obs_data_get_string(settings, "profile");
 	bool lossless;
 
-	if (!init_encoder_base(enc, settings, bf, psycho_aq, &lossless)) {
+	if (!init_encoder_base(enc, settings, bf, compatibility, &lossless)) {
 		return false;
 	}
 
@@ -690,14 +785,14 @@ static bool init_encoder_h264(struct nvenc_data *enc, obs_data_t *settings,
 }
 
 static bool init_encoder_hevc(struct nvenc_data *enc, obs_data_t *settings,
-			      int bf, bool psycho_aq)
+			      int bf, bool compatibility)
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	int keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
 	const char *profile = obs_data_get_string(settings, "profile");
 	bool lossless;
 
-	if (!init_encoder_base(enc, settings, bf, psycho_aq, &lossless)) {
+	if (!init_encoder_base(enc, settings, bf, compatibility, &lossless)) {
 		return false;
 	}
 
@@ -790,6 +885,81 @@ static bool init_encoder_hevc(struct nvenc_data *enc, obs_data_t *settings,
 	return true;
 }
 
+static bool init_encoder_av1(struct nvenc_data *enc, obs_data_t *settings,
+			     int bf, bool compatibility)
+{
+	const char *rc = obs_data_get_string(settings, "rate_control");
+	int keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
+	bool lossless;
+
+	if (!init_encoder_base(enc, settings, bf, compatibility, &lossless)) {
+		return false;
+	}
+
+	NV_ENC_INITIALIZE_PARAMS *params = &enc->params;
+	NV_ENC_CONFIG *config = &enc->config;
+	NV_ENC_CONFIG_AV1 *av1_config = &config->encodeCodecConfig.av1Config;
+
+	video_t *video = obs_encoder_video(enc->encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+	uint32_t gop_size =
+		(keyint_sec) ? keyint_sec * voi->fps_num / voi->fps_den : 250;
+
+	av1_config->idrPeriod = gop_size;
+
+	av1_config->useBFramesAsRef = NV_ENC_BFRAME_REF_MODE_DISABLED;
+
+	av1_config->colorRange = (voi->range == VIDEO_RANGE_FULL);
+
+	switch (voi->colorspace) {
+	case VIDEO_CS_601:
+		av1_config->colorPrimaries = 6;
+		av1_config->transferCharacteristics = 6;
+		av1_config->matrixCoefficients = 6;
+		break;
+	case VIDEO_CS_DEFAULT:
+	case VIDEO_CS_709:
+		av1_config->colorPrimaries = 1;
+		av1_config->transferCharacteristics = 1;
+		av1_config->matrixCoefficients = 1;
+		break;
+	case VIDEO_CS_SRGB:
+		av1_config->colorPrimaries = 1;
+		av1_config->transferCharacteristics = 13;
+		av1_config->matrixCoefficients = 1;
+		break;
+	case VIDEO_CS_2100_PQ:
+		av1_config->colorPrimaries = 9;
+		av1_config->transferCharacteristics = 16;
+		av1_config->matrixCoefficients = 9;
+		break;
+	case VIDEO_CS_2100_HLG:
+		av1_config->colorPrimaries = 9;
+		av1_config->transferCharacteristics = 18;
+		av1_config->matrixCoefficients = 9;
+	}
+
+	/* -------------------------- */
+	/* profile                    */
+
+	config->profileGUID = NV_ENC_AV1_PROFILE_MAIN_GUID;
+	av1_config->tier = NV_ENC_TIER_AV1_0;
+
+	av1_config->level = NV_ENC_LEVEL_AV1_AUTOSELECT;
+	av1_config->chromaFormatIDC = 1;
+	av1_config->pixelBitDepthMinus8 = obs_p010_tex_active() ? 2 : 0;
+	av1_config->inputPixelBitDepthMinus8 = av1_config->pixelBitDepthMinus8;
+	av1_config->numFwdRefs = 1;
+	av1_config->numBwdRefs = 1;
+	av1_config->repeatSeqHdr = 1;
+
+	if (NV_FAILED(nv.nvEncInitializeEncoder(enc->session, &enc->params))) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool init_bitstreams(struct nvenc_data *enc)
 {
 	da_reserve(enc->bitstreams, enc->buf_count);
@@ -823,13 +993,15 @@ static bool init_textures(struct nvenc_data *enc)
 static void nvenc_destroy(void *data);
 
 static bool init_specific_encoder(struct nvenc_data *enc, obs_data_t *settings,
-				  int bf, bool psycho_aq)
+				  int bf, bool compatibility)
 {
 	switch (enc->codec) {
 	case CODEC_HEVC:
-		return init_encoder_hevc(enc, settings, bf, psycho_aq);
+		return init_encoder_hevc(enc, settings, bf, compatibility);
 	case CODEC_H264:
-		return init_encoder_h264(enc, settings, bf, psycho_aq);
+		return init_encoder_h264(enc, settings, bf, compatibility);
+	case CODEC_AV1:
+		return init_encoder_av1(enc, settings, bf, compatibility);
 	}
 
 	return false;
@@ -838,8 +1010,7 @@ static bool init_specific_encoder(struct nvenc_data *enc, obs_data_t *settings,
 static bool init_encoder(struct nvenc_data *enc, enum codec_type codec,
 			 obs_data_t *settings, obs_encoder_t *encoder)
 {
-	const int bf = (int)obs_data_get_int(settings, "bf");
-	const bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
+	int bf = (int)obs_data_get_int(settings, "bf");
 	const bool support_10bit =
 		nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_10BIT_ENCODE);
 	const int bf_max = nv_get_cap(enc, NV_ENC_CAPS_NUM_MAX_BFRAMES);
@@ -865,16 +1036,16 @@ static bool init_encoder(struct nvenc_data *enc, enum codec_type codec,
 	}
 
 	if (bf > bf_max) {
-		NV_FAIL(obs_module_text("NVENC.TooManyBFrames"), bf, bf_max);
-		return false;
+		blog(LOG_WARNING,
+		     "[jim-nvenc] Max B-frames setting (%d) is more than encoder supports (%d).\n"
+		     "Setting B-frames to %d",
+		     bf, bf_max, bf_max);
+		bf = bf_max;
 	}
 
-	if (!init_specific_encoder(enc, settings, bf, psycho_aq)) {
-		if (!psycho_aq)
-			return false;
-
+	if (!init_specific_encoder(enc, settings, bf, false)) {
 		blog(LOG_WARNING, "[jim-nvenc] init_specific_encoder failed, "
-				  "trying again without Psycho Visual Tuning");
+				  "trying again with compatibility options");
 
 		nv.nvEncDestroyEncoder(enc->session);
 		enc->session = NULL;
@@ -882,7 +1053,8 @@ static bool init_encoder(struct nvenc_data *enc, enum codec_type codec,
 		if (!init_session(enc)) {
 			return false;
 		}
-		if (!init_specific_encoder(enc, settings, bf, false)) {
+		/* try without multipass and psycho aq */
+		if (!init_specific_encoder(enc, settings, bf, true)) {
 			return false;
 		}
 	}
@@ -893,11 +1065,12 @@ static bool init_encoder(struct nvenc_data *enc, enum codec_type codec,
 static void *nvenc_create_internal(enum codec_type codec, obs_data_t *settings,
 				   obs_encoder_t *encoder)
 {
-	NV_ENCODE_API_FUNCTION_LIST init = {NV_ENCODE_API_FUNCTION_LIST_VER};
 	struct nvenc_data *enc = bzalloc(sizeof(*enc));
 	enc->encoder = encoder;
 	enc->codec = codec;
 	enc->first_packet = true;
+
+	NV_ENCODE_API_FUNCTION_LIST init = {NV_ENCODE_API_FUNCTION_LIST_VER};
 
 	switch (enc->codec) {
 	case CODEC_H264:
@@ -905,6 +1078,9 @@ static void *nvenc_create_internal(enum codec_type codec, obs_data_t *settings,
 		break;
 	case CODEC_HEVC:
 		enc->codec_guid = NV_ENC_CODEC_HEVC_GUID;
+		break;
+	case CODEC_AV1:
+		enc->codec_guid = NV_ENC_CODEC_AV1_GUID;
 		break;
 	}
 
@@ -995,6 +1171,11 @@ static void *hevc_nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 }
 #endif
 
+static void *av1_nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
+{
+	return nvenc_create_base(CODEC_AV1, settings, encoder);
+}
+
 static bool get_encoded_packet(struct nvenc_data *enc, bool finalize);
 
 static void nvenc_destroy(void *data)
@@ -1004,7 +1185,10 @@ static void nvenc_destroy(void *data)
 	if (enc->encode_started) {
 		size_t next_bitstream = enc->next_bitstream;
 
-		NV_ENC_PIC_PARAMS params = {NV_ENC_PIC_PARAMS_VER};
+		uint32_t struct_ver = enc->codec == CODEC_AV1
+					      ? NV_ENC_PIC_PARAMS_VER
+					      : NV_ENC_PIC_PARAMS_COMPAT_VER;
+		NV_ENC_PIC_PARAMS params = {struct_ver};
 		params.encodePicFlags = NV_ENC_PIC_FLAG_EOS;
 		nv.nvEncEncodePicture(enc->session, &params);
 		get_encoded_packet(enc, true);
@@ -1105,7 +1289,12 @@ static bool get_encoded_packet(struct nvenc_data *enc, bool finalize)
 
 		/* ---------------- */
 
-		NV_ENC_LOCK_BITSTREAM lock = {NV_ENC_LOCK_BITSTREAM_VER};
+		uint32_t struct_ver =
+			enc->codec == CODEC_AV1
+				? NV_ENC_LOCK_BITSTREAM_VER
+				: NV_ENC_LOCK_BITSTREAM_COMPAT_VER;
+
+		NV_ENC_LOCK_BITSTREAM lock = {struct_ver};
 		lock.outputBitstream = bs->ptr;
 		lock.doNotWait = false;
 
@@ -1221,7 +1410,8 @@ static bool nvenc_encode_tex(void *data, uint32_t handle, int64_t pts,
 	/* do actual encode call                */
 
 	NV_ENC_PIC_PARAMS params = {0};
-	params.version = NV_ENC_PIC_PARAMS_VER;
+	params.version = enc->codec == CODEC_AV1 ? NV_ENC_PIC_PARAMS_VER
+						 : NV_ENC_PIC_PARAMS_COMPAT_VER;
 	params.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
 	params.inputBuffer = nvtex->mapped_res;
 	params.bufferFmt = obs_p010_tex_active()
@@ -1284,6 +1474,8 @@ extern obs_properties_t *h264_nvenc_properties(void *unused);
 extern void hevc_nvenc_defaults(obs_data_t *settings);
 extern obs_properties_t *hevc_nvenc_properties(void *unused);
 #endif
+extern obs_properties_t *av1_nvenc_properties(void *unused);
+extern void av1_nvenc_defaults(obs_data_t *settings);
 
 static bool nvenc_extra_data(void *data, uint8_t **header, size_t *size)
 {
@@ -1344,3 +1536,18 @@ struct obs_encoder_info hevc_nvenc_info = {
 	.get_sei_data = nvenc_sei_data,
 };
 #endif
+
+struct obs_encoder_info av1_nvenc_info = {
+	.id = "jim_av1_nvenc",
+	.codec = "av1",
+	.type = OBS_ENCODER_VIDEO,
+	.caps = OBS_ENCODER_CAP_PASS_TEXTURE | OBS_ENCODER_CAP_DYN_BITRATE,
+	.get_name = av1_nvenc_get_name,
+	.create = av1_nvenc_create,
+	.destroy = nvenc_destroy,
+	.update = nvenc_update,
+	.encode_texture = nvenc_encode_tex,
+	.get_defaults = av1_nvenc_defaults,
+	.get_properties = av1_nvenc_properties,
+	.get_extra_data = nvenc_extra_data,
+};
