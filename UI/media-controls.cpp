@@ -277,6 +277,9 @@ void MediaControls::RefreshControls()
 	isSlideshow = strcmp(id, "slideshow") == 0 ||
 		      strcmp(id, "browser_source") == 0;
 	ui->slider->setVisible(!isSlideshow);
+	ui->timerLabel->setVisible(!isSlideshow);
+	ui->label->setVisible(!isSlideshow);
+	ui->durationLabel->setVisible(!isSlideshow);
 	ui->emptySpaceAgain->setVisible(isSlideshow);
 
 	obs_media_state state = obs_source_media_get_state(source);
