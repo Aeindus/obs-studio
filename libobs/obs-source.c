@@ -2477,6 +2477,8 @@ static inline void obs_source_render_async_video(obs_source_t *source)
 		bool nonlinear_alpha = false;
 		switch (source_space) {
 		case GS_CS_SRGB:
+			linear_srgb = linear_srgb ||
+				      (current_space != GS_CS_SRGB);
 			nonlinear_alpha = linear_srgb &&
 					  !source->async_linear_alpha;
 			switch (current_space) {
@@ -2491,14 +2493,12 @@ static inline void obs_source_render_async_video(obs_source_t *source)
 					nonlinear_alpha
 						? "DrawNonlinearAlphaMultiply"
 						: "DrawMultiply";
-				linear_srgb = true;
 				multiplier =
 					obs_get_video_sdr_white_level() / 80.0f;
 			}
 			break;
 		case GS_CS_SRGB_16F:
-			switch (current_space) {
-			case GS_CS_709_SCRGB:
+			if (current_space == GS_CS_709_SCRGB) {
 				tech_name = "DrawMultiply";
 				multiplier =
 					obs_get_video_sdr_white_level() / 80.0f;

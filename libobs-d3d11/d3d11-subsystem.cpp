@@ -364,51 +364,6 @@ void gs_device::InitFactory()
 		throw UnsupportedHWError("Failed to create DXGIFactory", hr);
 }
 
-#define VENDOR_ID_INTEL 0x8086
-#define IGPU_MEM (512 * 1024 * 1024)
-
-extern "C" {
-EXPORT void obs_internal_set_adapter_idx_this_is_dumb(uint32_t adapter_idx);
-}
-
-void gs_device::ReorderAdapters(uint32_t &adapterIdx)
-{
-	std::vector<uint32_t> adapterOrder;
-	ComPtr<IDXGIAdapter> adapter;
-	DXGI_ADAPTER_DESC desc;
-	uint32_t iGPUIndex = 0;
-	bool hasIGPU = false;
-	bool hasDGPU = false;
-	int idx = 0;
-
-	while (SUCCEEDED(factory->EnumAdapters(idx, &adapter))) {
-		if (SUCCEEDED(adapter->GetDesc(&desc))) {
-			if (desc.VendorId == VENDOR_ID_INTEL) {
-				if (desc.DedicatedVideoMemory <= IGPU_MEM) {
-					hasIGPU = true;
-					iGPUIndex = (uint32_t)idx;
-				} else {
-					hasDGPU = true;
-				}
-			}
-		}
-
-		adapterOrder.push_back((uint32_t)idx++);
-	}
-
-	/* Intel specific adapter check for Intel integrated and Intel
-	 * dedicated. If both exist, then change adapter priority so that the
-	 * integrated comes first for the sake of improving overall
-	 * performance */
-	if (hasIGPU && hasDGPU) {
-		adapterOrder.erase(adapterOrder.begin() + iGPUIndex);
-		adapterOrder.insert(adapterOrder.begin(), iGPUIndex);
-		adapterIdx = adapterOrder[adapterIdx];
-
-		obs_internal_set_adapter_idx_this_is_dumb(adapterIdx);
-	}
-}
-
 void gs_device::InitAdapter(uint32_t adapterIdx)
 {
 	HRESULT hr = factory->EnumAdapters1(adapterIdx, &adapter);
@@ -947,7 +902,6 @@ gs_device::gs_device(uint32_t adapterIdx)
 
 	InitCompiler();
 	InitFactory();
-	ReorderAdapters(adapterIdx);
 	InitAdapter(adapterIdx);
 	InitDevice(adapterIdx);
 	device_set_render_target(this, NULL, NULL);
@@ -1270,6 +1224,7 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 			target.monitorFriendlyDeviceName[0] = 0;
 		}
 
+		UINT bits_per_color = 8;
 		DXGI_COLOR_SPACE_TYPE type =
 			DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 		FLOAT min_luminance = 0.f;
@@ -1277,6 +1232,7 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 		FLOAT max_full_frame_luminance = 0.f;
 		DXGI_OUTPUT_DESC1 desc1;
 		if (GetOutputDesc1(output, &desc1)) {
+			bits_per_color = desc1.BitsPerColor;
 			type = desc1.ColorSpace;
 			min_luminance = desc1.MinLuminance;
 			max_luminance = desc1.MaxLuminance;
@@ -1306,13 +1262,14 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 		     "\t    size={%d, %d}\n"
 		     "\t    attached=%s\n"
 		     "\t    refresh=%u\n"
+		     "\t    bits_per_color=%u\n"
 		     "\t    space=%s\n"
 		     "\t    sdr_white_nits=%lu\n"
 		     "\t    nit_range=[min=%f, max=%f, max_full_frame=%f]",
 		     i, target.monitorFriendlyDeviceName, rect.left, rect.top,
 		     rect.right - rect.left, rect.bottom - rect.top,
-		     desc.AttachedToDesktop ? "true" : "false", refresh, space,
-		     nits, min_luminance, max_luminance,
+		     desc.AttachedToDesktop ? "true" : "false", refresh,
+		     bits_per_color, space, nits, min_luminance, max_luminance,
 		     max_full_frame_luminance);
 	}
 }

@@ -328,7 +328,7 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 		OBSBasic *main =
 			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
-		if (source) {
+		if (obs_source_configurable(source)) {
 			main->CreatePropertiesWindow(source);
 		}
 	}
@@ -636,13 +636,15 @@ void SourceTreeModel::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 {
 	SourceTreeModel *stm = reinterpret_cast<SourceTreeModel *>(ptr);
 
-	switch ((int)event) {
+	switch (event) {
 	case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
 		stm->SceneChanged();
 		break;
 	case OBS_FRONTEND_EVENT_EXIT:
 	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
 		stm->Clear();
+		break;
+	default:
 		break;
 	}
 }

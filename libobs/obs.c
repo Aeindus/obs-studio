@@ -56,7 +56,7 @@ static inline void calc_gpu_conversion_sizes(struct obs_core_video_mix *video)
 	video->conversion_width_i = 0.f;
 	video->conversion_height_i = 0.f;
 
-	switch ((uint32_t)info->format) {
+	switch (info->format) {
 	case VIDEO_FORMAT_I420:
 		video->conversion_needed = true;
 		video->conversion_techs[0] = "Planar_Y";
@@ -462,8 +462,6 @@ static int obs_init_graphics(struct obs_video_info *ovi)
 	bool success = true;
 	int errorcode;
 
-	video->adapter_index = ovi->adapter;
-
 	errorcode =
 		gs_create(&video->graphics, ovi->graphics_module, ovi->adapter);
 	if (errorcode != GS_SUCCESS) {
@@ -776,13 +774,16 @@ void obs_free_video_mix(struct obs_core_video_mix *video)
 static void obs_free_video(void)
 {
 	pthread_mutex_lock(&obs->video.mixes_mutex);
-	size_t num = obs->video.mixes.num;
-	if (num)
-		blog(LOG_WARNING, "%zu views remain at shutdown", num);
-	for (size_t i = 0; i < num; i++) {
-		obs_free_video_mix(obs->video.mixes.array[i]);
+	size_t num_views = 0;
+	for (size_t i = 0; i < obs->video.mixes.num; i++) {
+		struct obs_core_video_mix *video = obs->video.mixes.array[i];
+		if (video && video->view)
+			num_views++;
+		obs_free_video_mix(video);
 		obs->video.mixes.array[i] = NULL;
 	}
+	if (num_views > 0)
+		blog(LOG_WARNING, "Number of remaining views: %ld", num_views);
 	pthread_mutex_unlock(&obs->video.mixes_mutex);
 
 	pthread_mutex_destroy(&obs->video.mixes_mutex);
@@ -1410,8 +1411,6 @@ int obs_reset_video(struct obs_video_info *ovi)
 			return errorcode;
 		}
 	}
-
-	ovi->adapter = obs->video.adapter_index;
 
 	const char *scale_type_name = "";
 	switch (ovi->scale_type) {
@@ -3103,13 +3102,4 @@ bool obs_weak_object_references_object(obs_weak_object_t *weak,
 				       obs_object_t *object)
 {
 	return weak && object && weak->object == object;
-}
-
-/* this function is a hack for the annoying intel igpu + dgpu situation. I
- * guess. I don't care anymore. */
-EXPORT void obs_internal_set_adapter_idx_this_is_dumb(uint32_t adapter_idx)
-{
-	if (!obs)
-		return;
-	obs->video.adapter_index = adapter_idx;
 }
