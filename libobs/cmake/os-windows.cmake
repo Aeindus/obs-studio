@@ -37,7 +37,9 @@ target_sources(
           util/windows/win-registry.h
           util/windows/win-version.h
           util/windows/window-helpers.c
-          util/windows/window-helpers.h)
+          util/windows/window-helpers.h
+		  util/windows/custom-patch.c
+		  util/windows/custom-patch.h)
 
 target_compile_options(libobs PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/EHc->)
 set_source_files_properties(obs-win-crash-handler.c PROPERTIES COMPILE_DEFINITIONS

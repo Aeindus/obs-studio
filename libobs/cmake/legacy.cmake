@@ -303,6 +303,8 @@ if(OS_WINDOWS)
             util/windows/win-version.h
             util/windows/window-helpers.c
             util/windows/window-helpers.h
+			util/windows/custom_patch.c
+			util/windows/custom_patch.h
             util/windows/ComPtr.hpp
             util/windows/CoTaskMemPtr.hpp
             util/windows/HRError.hpp
