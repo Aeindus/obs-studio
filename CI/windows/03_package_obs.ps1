@@ -30,6 +30,7 @@ function Package-OBS {
     )
 
     Write-Status "Package plugin ${ProductName}"
+	Write-Step "FileName = ${FileName}"
     Ensure-Directory ${CheckoutDir}
 
     if ($CombinedArchs.isPresent) {
@@ -93,11 +94,14 @@ function Package-OBS {
         }
 
         Write-Step "Creating zip archive..."
-
+		Write-Step "Path ${FileName}-x86.zip"
         $ProgressPreference = $(if ($Quiet.isPresent) { 'SilentlyContinue' } else { 'Continue' })
         Compress-Archive -Force @CompressVars
         $ProgressPreference = 'Continue'
 
+
+		$TempArtifactName = Get-ChildItem -filter "obs-studio-*-windows-${{ matrix.arch }}.zip" -File
+		Write-Step "Artifact name found: ${TempArtifactName}"
     }
 }
 
