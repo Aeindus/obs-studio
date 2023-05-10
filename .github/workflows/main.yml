@@ -26,7 +26,7 @@ env:
 jobs:
   windows_build:
     name: '02 - Windows'
-    runs-on: [self-hosted, windows-2022]
+    runs-on: self-hosted
     if: always()
     strategy:
       matrix:
