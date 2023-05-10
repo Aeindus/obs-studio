@@ -30,6 +30,10 @@ function Package-OBS {
     )
 
     Write-Status "Package plugin ${ProductName}"
+	Write-Step "FileName = ${FileName}"
+	Write-Step (Test-Path variable:BUILD_FOR_DISTRIBUTION | Out-String)
+	Write-Step (Test-Path env:BUILD_FOR_DISTRIBUTION | Out-String)
+	
     Ensure-Directory ${CheckoutDir}
 
     if ($CombinedArchs.isPresent) {
@@ -93,11 +97,13 @@ function Package-OBS {
         }
 
         Write-Step "Creating zip archive..."
-
+		Write-Step "Path ${FileName}-x86.zip"
         $ProgressPreference = $(if ($Quiet.isPresent) { 'SilentlyContinue' } else { 'Continue' })
         Compress-Archive -Force @CompressVars
         $ProgressPreference = 'Continue'
 
+		$TempArtifactName = Get-ChildItem -filter "obs-studio-*-windows-$BuildArch.zip" -File
+		Write-Step "Artifact name found: ${TempArtifactName}"
     }
 }
 
@@ -119,7 +125,7 @@ function Package-OBS-Standalone {
     $GitTag = git describe --tags --abbrev=0
     $ErrorActionPreference = "Stop"
 
-    if(Test-Path variable:BUILD_FOR_DISTRIBUTION) {
+    if(Test-Path env:BUILD_FOR_DISTRIBUTION) {
         $VersionString = "${GitTag}"
     } else {
         $VersionString = "${GitTag}-${GitHash}"
@@ -145,13 +151,12 @@ function Print-Usage {
     $Lines | Write-Host
 }
 
-
 if(!(Test-Path variable:_RunObsBuildScript)) {
     $_ScriptName = "$($MyInvocation.MyCommand.Name)"
     if($Help.isPresent) {
         Print-Usage
         exit 0
     }
-
+	
     Package-OBS-Standalone
 }
