@@ -37,19 +37,19 @@
 #define S_KNEE                          "knee_width"
 
 #define MT_ obs_module_text
-#define TEXT_RATIO                      MT_("expander.Ratio")
-#define TEXT_THRESHOLD                  MT_("expander.Threshold")
-#define TEXT_ATTACK_TIME                MT_("expander.AttackTime")
-#define TEXT_RELEASE_TIME               MT_("expander.ReleaseTime")
-#define TEXT_OUTPUT_GAIN                MT_("expander.OutputGain")
-#define TEXT_DETECTOR                   MT_("expander.Detector")
-#define TEXT_PEAK                       MT_("expander.Peak")
-#define TEXT_RMS                        MT_("expander.RMS")
-#define TEXT_NONE                       MT_("expander.None")
-#define TEXT_PRESETS                    MT_("expander.Presets")
-#define TEXT_PRESETS_EXP                MT_("expander.Presets.Expander")
-#define TEXT_PRESETS_GATE               MT_("expander.Presets.Gate")
-#define TEXT_KNEE                       MT_("expander.Knee.Width")
+#define TEXT_RATIO                      MT_("Expander.Ratio")
+#define TEXT_THRESHOLD                  MT_("Expander.Threshold")
+#define TEXT_ATTACK_TIME                MT_("Expander.AttackTime")
+#define TEXT_RELEASE_TIME               MT_("Expander.ReleaseTime")
+#define TEXT_OUTPUT_GAIN                MT_("Expander.OutputGain")
+#define TEXT_DETECTOR                   MT_("Expander.Detector")
+#define TEXT_PEAK                       MT_("Expander.Peak")
+#define TEXT_RMS                        MT_("Expander.RMS")
+#define TEXT_NONE                       MT_("Expander.None")
+#define TEXT_PRESETS                    MT_("Expander.Presets")
+#define TEXT_PRESETS_EXP                MT_("Expander.Presets.Expander")
+#define TEXT_PRESETS_GATE               MT_("Expander.Presets.Gate")
+#define TEXT_KNEE                       MT_("Expander.Knee.Width")
 
 #define MIN_RATIO                       1.0f
 #define MAX_RATIO                       20.0f
@@ -360,12 +360,15 @@ static inline void process_sample(size_t idx, float *samples, float *env_buf,
 	float diff = threshold - env_db;
 
 	if (is_upwcomp && env_db <= (threshold - 60.0f) / 2)
-		diff = env_db + 60.0f;
+		diff = env_db + 60.0f > 0 ? env_db + 60.0f : 0.0f;
 
 	float gain = 0.0f;
+	float prev_gain = 0.0f;
 	// Note that the gain is always >= 0 for the upward compressor
 	// but is always <=0 for the expander.
 	if (is_upwcomp) {
+		prev_gain = idx > 0 ? fmaxf(gain_db[idx - 1], 0)
+				    : fmaxf(channel_gain, 0);
 		// gain above knee (included for clarity):
 		if (env_db >= threshold + knee / 2)
 			gain = 0.0f;
@@ -377,9 +380,9 @@ static inline void process_sample(size_t idx, float *samples, float *env_buf,
 		    threshold + knee / 2 > env_db)
 			gain = slope * powf(diff + knee / 2, 2) / (2.0f * knee);
 	} else {
+		prev_gain = idx > 0 ? gain_db[idx - 1] : channel_gain;
 		gain = diff > 0.0f ? fmaxf(slope * diff, -60.0f) : 0.0f;
 	}
-	float prev_gain = idx > 0 ? gain_db[idx - 1] : channel_gain;
 
 	/* --------------------------------- */
 	/* ballistics (attack/release)       */
@@ -456,6 +459,15 @@ expander_filter_audio(void *data, struct obs_audio_data *audio)
 	return audio;
 }
 
+static bool presets_changed(obs_properties_t *props, obs_property_t *prop,
+			    obs_data_t *settings)
+{
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(prop);
+	UNUSED_PARAMETER(settings);
+	return true;
+}
+
 static obs_properties_t *expander_properties(void *data)
 {
 	struct expander_data *cd = data;
@@ -469,6 +481,7 @@ static obs_properties_t *expander_properties(void *data)
 					     "expander");
 		obs_property_list_add_string(presets, TEXT_PRESETS_GATE,
 					     "gate");
+		obs_property_set_modified_callback(presets, presets_changed);
 	}
 
 	p = obs_properties_add_float_slider(

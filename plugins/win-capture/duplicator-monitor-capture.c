@@ -70,6 +70,8 @@ struct duplicator_capture {
 	obs_source_t *source;
 	pthread_mutex_t update_mutex;
 	char monitor_id[128];
+	char id[128];
+	char alt_id[128];
 	char monitor_name[64];
 	enum display_capture_method method;
 	bool reset_wgc;
@@ -96,7 +98,9 @@ struct duplicator_capture {
 
 struct duplicator_monitor_info {
 	char device_id[128];
-	char name[64];
+	char id[128];
+	char alt_id[128];
+	char name[128];
 	RECT rect;
 	HMONITOR handle;
 };
@@ -178,7 +182,12 @@ static void GetMonitorName(HMONITOR handle, char *name, size_t count)
 	mi.cbSize = sizeof(mi);
 	if (GetMonitorInfoW(handle, (LPMONITORINFO)&mi) &&
 	    GetMonitorTarget(mi.szDevice, &target)) {
-		snprintf(name, count, "%ls", target.monitorFriendlyDeviceName);
+		char *friendly_name;
+		os_wcs_to_utf8_ptr(target.monitorFriendlyDeviceName, 0,
+				   &friendly_name);
+
+		strcpy_s(name, count, friendly_name);
+		bfree(friendly_name);
 	} else {
 		strcpy_s(name, count, "[OBS: Unknown]");
 	}
@@ -204,10 +213,15 @@ static BOOL CALLBACK enum_monitor(HMONITOR handle, HDC hdc, LPRECT rect,
 			match = strcmp(monitor->device_id, device.DeviceID) ==
 				0;
 			if (match) {
-				monitor->rect = *rect;
-				monitor->handle = handle;
+				strcpy_s(monitor->id, _countof(monitor->id),
+					 device.DeviceID);
+				strcpy_s(monitor->alt_id,
+					 _countof(monitor->alt_id),
+					 mi.szDevice);
 				GetMonitorName(handle, monitor->name,
 					       _countof(monitor->name));
+				monitor->rect = *rect;
+				monitor->handle = handle;
 			}
 		}
 	}
@@ -230,10 +244,12 @@ static BOOL CALLBACK enum_monitor_fallback(HMONITOR handle, HDC hdc,
 	if (GetMonitorInfoA(handle, (LPMONITORINFO)&mi)) {
 		match = strcmp(monitor->device_id, mi.szDevice) == 0;
 		if (match) {
-			monitor->rect = *rect;
-			monitor->handle = handle;
+			strcpy_s(monitor->alt_id, _countof(monitor->alt_id),
+				 mi.szDevice);
 			GetMonitorName(handle, monitor->name,
 				       _countof(monitor->name));
+			monitor->rect = *rect;
+			monitor->handle = handle;
 		}
 	}
 
@@ -246,9 +262,14 @@ static void log_settings(struct duplicator_capture *capture,
 	info("update settings:\n"
 	     "\tdisplay: %s (%ldx%ld)\n"
 	     "\tcursor: %s\n"
-	     "\tmethod: %s",
+	     "\tmethod: %s\n"
+	     "\tid: %s\n"
+	     "\talt_id: %s\n"
+	     "\tsetting_id: %s\n"
+	     "\tforce SDR: %s",
 	     monitor, width, height, capture->capture_cursor ? "true" : "false",
-	     get_method_name(capture->method));
+	     get_method_name(capture->method), capture->id, capture->alt_id,
+	     capture->monitor_id, capture->force_sdr ? "true" : "false");
 }
 
 static enum display_capture_method
@@ -312,6 +333,8 @@ static inline void update_settings(struct duplicator_capture *capture,
 
 	strcpy_s(capture->monitor_id, _countof(capture->monitor_id),
 		 monitor.device_id);
+	strcpy_s(capture->id, _countof(capture->id), monitor.id);
+	strcpy_s(capture->alt_id, _countof(capture->alt_id), monitor.alt_id);
 	strcpy_s(capture->monitor_name, _countof(capture->monitor_name),
 		 monitor.name);
 	capture->handle = monitor.handle;
@@ -712,18 +735,32 @@ static void duplicator_capture_render(void *data, gs_effect_t *unused)
 		const char *tech_name = "Draw";
 		float multiplier = 1.f;
 		const enum gs_color_space current_space = gs_get_color_space();
-		if (gs_texture_get_color_format(texture) == GS_RGBA16F) {
-			switch (current_space) {
-			case GS_CS_SRGB:
-			case GS_CS_SRGB_16F:
-				tech_name = "DrawMultiplyTonemap";
-				multiplier =
-					80.f / obs_get_video_sdr_white_level();
-				break;
-			case GS_CS_709_EXTENDED:
+		if (gs_duplicator_get_color_space(capture->duplicator) ==
+		    GS_CS_709_SCRGB) {
+			if (capture->force_sdr) {
 				tech_name = "DrawMultiply";
-				multiplier =
-					80.f / obs_get_video_sdr_white_level();
+				const float target_nits =
+					(current_space == GS_CS_709_SCRGB)
+						? obs_get_video_sdr_white_level()
+						: 80.f;
+				multiplier = target_nits /
+					     gs_duplicator_get_sdr_white_level(
+						     capture->duplicator);
+			} else {
+				switch (current_space) {
+				case GS_CS_SRGB:
+				case GS_CS_SRGB_16F:
+					tech_name = "DrawMultiplyTonemap";
+					multiplier =
+						80.f /
+						obs_get_video_sdr_white_level();
+					break;
+				case GS_CS_709_EXTENDED:
+					tech_name = "DrawMultiply";
+					multiplier =
+						80.f /
+						obs_get_video_sdr_white_level();
+				}
 			}
 		} else if (current_space == GS_CS_709_SCRGB) {
 			tech_name = "DrawMultiply";
@@ -822,9 +859,6 @@ static void update_settings_visibility(obs_properties_t *props,
 	obs_property_t *p = obs_properties_get(props, "cursor");
 	obs_property_set_visible(p, dxgi_options || wgc_cursor_toggle);
 
-	p = obs_properties_get(props, "force_sdr");
-	obs_property_set_visible(p, wgc_options);
-
 	pthread_mutex_unlock(&capture->update_mutex);
 }
 
@@ -887,17 +921,9 @@ duplicator_capture_get_color_space(void *data, size_t count,
 				capture->exports.winrt_capture_get_color_space(
 					capture->capture_winrt);
 		}
-	} else {
-		if (capture->duplicator) {
-			gs_texture_t *const texture =
-				gs_duplicator_get_texture(capture->duplicator);
-			if (texture) {
-				capture_space = (gs_texture_get_color_format(
-							 texture) == GS_RGBA16F)
-							? GS_CS_709_EXTENDED
-							: GS_CS_SRGB;
-			}
-		}
+	} else if (capture->duplicator && !capture->force_sdr) {
+		capture_space =
+			gs_duplicator_get_color_space(capture->duplicator);
 	}
 
 	enum gs_color_space space = capture_space;

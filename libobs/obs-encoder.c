@@ -52,7 +52,7 @@ static bool init_encoder(struct obs_encoder *encoder, const char *name,
 	pthread_mutex_init_value(&encoder->pause.mutex);
 
 	if (!obs_context_data_init(&encoder->context, OBS_OBJ_TYPE_ENCODER,
-				   settings, name, hotkey_data, false))
+				   settings, name, NULL, hotkey_data, false))
 		return false;
 	if (pthread_mutex_init_recursive(&encoder->init_mutex) != 0)
 		return false;
@@ -691,6 +691,18 @@ void obs_encoder_set_scaled_size(obs_encoder_t *encoder, uint32_t width,
 		     "encoder '%s': Cannot set the scaled "
 		     "resolution while the encoder is active",
 		     obs_encoder_get_name(encoder));
+		return;
+	}
+
+	const struct video_output_info *voi;
+	voi = video_output_get_info(encoder->media);
+	if (voi && voi->width == width && voi->height == height) {
+		blog(LOG_WARNING,
+		     "encoder '%s': Scaled resolution "
+		     "matches output resolution, scaling "
+		     "disabled",
+		     obs_encoder_get_name(encoder));
+		encoder->scaled_width = encoder->scaled_height = 0;
 		return;
 	}
 

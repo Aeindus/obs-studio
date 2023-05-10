@@ -25,6 +25,7 @@
 #include <winternl.h>
 #include <d3d9.h>
 #include "d3d11-subsystem.hpp"
+#include <shellscalingapi.h>
 
 struct UnsupportedHWError : HRError {
 	inline UnsupportedHWError(const char *str, HRESULT hr)
@@ -66,53 +67,6 @@ gs_obj::~gs_obj()
 		next->prev_next = prev_next;
 }
 
-static gs_monitor_color_info get_monitor_color_info(gs_device_t *device,
-						    HMONITOR hMonitor)
-{
-	IDXGIFactory1 *factory1 = device->factory;
-	if (!factory1->IsCurrent()) {
-		device->InitFactory();
-		factory1 = device->factory;
-		device->monitor_to_hdr.clear();
-	}
-
-	for (const std::pair<HMONITOR, gs_monitor_color_info> &pair :
-	     device->monitor_to_hdr) {
-		if (pair.first == hMonitor)
-			return pair.second;
-	}
-
-	ComPtr<IDXGIAdapter> adapter;
-	ComPtr<IDXGIOutput> output;
-	ComPtr<IDXGIOutput6> output6;
-	for (UINT adapterIndex = 0;
-	     SUCCEEDED(factory1->EnumAdapters(adapterIndex, &adapter));
-	     ++adapterIndex) {
-		for (UINT outputIndex = 0;
-		     SUCCEEDED(adapter->EnumOutputs(outputIndex, &output));
-		     ++outputIndex) {
-			if (SUCCEEDED(output->QueryInterface(&output6))) {
-				DXGI_OUTPUT_DESC1 desc1;
-				if (SUCCEEDED(output6->GetDesc1(&desc1)) &&
-				    (desc1.Monitor == hMonitor)) {
-					const bool hdr =
-						desc1.ColorSpace ==
-						DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
-					return device->monitor_to_hdr
-						.emplace_back(
-							hMonitor,
-							gs_monitor_color_info(
-								hdr,
-								desc1.BitsPerColor))
-						.second;
-				}
-			}
-		}
-	}
-
-	return gs_monitor_color_info(false, 8);
-}
-
 static enum gs_color_space get_next_space(gs_device_t *device, HWND hwnd,
 					  DXGI_SWAP_EFFECT effect)
 {
@@ -122,7 +76,7 @@ static enum gs_color_space get_next_space(gs_device_t *device, HWND hwnd,
 			MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
 		if (hMonitor) {
 			const gs_monitor_color_info info =
-				get_monitor_color_info(device, hMonitor);
+				device->GetMonitorColorInfo(hMonitor);
 			if (info.hdr)
 				next_space = GS_CS_709_SCRGB;
 			else if (info.bits_per_color > 8)
@@ -1169,9 +1123,9 @@ static HRESULT GetPathInfo(HMONITOR hMonitor,
 	return hr;
 }
 
-static ULONG GetSdrWhiteNits(HMONITOR monitor)
+static ULONG GetSdrMaxNits(HMONITOR monitor)
 {
-	ULONG nits = 0;
+	ULONG nits = 80;
 
 	DISPLAYCONFIG_PATH_INFO info;
 	if (SUCCEEDED(GetPathInfo(monitor, &info))) {
@@ -1191,6 +1145,67 @@ static ULONG GetSdrWhiteNits(HMONITOR monitor)
 	return nits;
 }
 
+gs_monitor_color_info gs_device::GetMonitorColorInfo(HMONITOR hMonitor)
+{
+	IDXGIFactory1 *factory1 = factory;
+	if (!factory1->IsCurrent()) {
+		InitFactory();
+		factory1 = factory;
+		monitor_to_hdr.clear();
+	}
+
+	for (const std::pair<HMONITOR, gs_monitor_color_info> &pair :
+	     monitor_to_hdr) {
+		if (pair.first == hMonitor)
+			return pair.second;
+	}
+
+	ComPtr<IDXGIAdapter> adapter;
+	ComPtr<IDXGIOutput> output;
+	ComPtr<IDXGIOutput6> output6;
+	for (UINT adapterIndex = 0;
+	     SUCCEEDED(factory1->EnumAdapters(adapterIndex, &adapter));
+	     ++adapterIndex) {
+		for (UINT outputIndex = 0;
+		     SUCCEEDED(adapter->EnumOutputs(outputIndex, &output));
+		     ++outputIndex) {
+			DXGI_OUTPUT_DESC1 desc1;
+			if (SUCCEEDED(output->QueryInterface(&output6)) &&
+			    SUCCEEDED(output6->GetDesc1(&desc1)) &&
+			    (desc1.Monitor == hMonitor)) {
+				const bool hdr =
+					desc1.ColorSpace ==
+					DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+				const UINT bits = desc1.BitsPerColor;
+				const ULONG nits = GetSdrMaxNits(desc1.Monitor);
+				return monitor_to_hdr
+					.emplace_back(hMonitor,
+						      gs_monitor_color_info(
+							      hdr, bits, nits))
+					.second;
+			}
+		}
+	}
+
+	return gs_monitor_color_info(false, 8, 80);
+}
+
+static void PopulateMonitorIds(HMONITOR handle, char *id, char *alt_id,
+			       size_t capacity)
+{
+	MONITORINFOEXA mi;
+	mi.cbSize = sizeof(mi);
+	if (GetMonitorInfoA(handle, (LPMONITORINFO)&mi)) {
+		strcpy_s(alt_id, capacity, mi.szDevice);
+		DISPLAY_DEVICEA device;
+		device.cb = sizeof(device);
+		if (EnumDisplayDevicesA(mi.szDevice, 0, &device,
+					EDD_GET_DEVICE_INTERFACE_NAME)) {
+			strcpy_s(id, capacity, device.DeviceID);
+		}
+	}
+}
+
 static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 {
 	UINT i;
@@ -1205,6 +1220,11 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 
 		bool target_found = false;
 		DISPLAYCONFIG_TARGET_DEVICE_NAME target;
+
+		constexpr size_t id_capacity = 128;
+		char id[id_capacity]{};
+		char alt_id[id_capacity]{};
+		PopulateMonitorIds(desc.Monitor, id, alt_id, id_capacity);
 
 		MONITORINFOEX info;
 		info.cbSize = sizeof(info);
@@ -1253,11 +1273,26 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 			     (unsigned)type);
 		}
 
+		// These are always identical, but you still have to supply both, thanks Microsoft!
+		UINT dpiX, dpiY;
+		unsigned scaling = 100;
+		if (GetDpiForMonitor(desc.Monitor, MDT_EFFECTIVE_DPI, &dpiX,
+				     &dpiY) == S_OK) {
+			scaling = (unsigned)(dpiX * 100.0f / 96.0f);
+		} else {
+			dpiX = 0;
+		}
+
 		const RECT &rect = desc.DesktopCoordinates;
-		const ULONG nits = GetSdrWhiteNits(desc.Monitor);
+		const ULONG nits = GetSdrMaxNits(desc.Monitor);
+
+		char *friendly_name;
+		os_wcs_to_utf8_ptr(target.monitorFriendlyDeviceName, 0,
+				   &friendly_name);
+
 		blog(LOG_INFO,
 		     "\t  output %u:\n"
-		     "\t    name=%ls\n"
+		     "\t    name=%s\n"
 		     "\t    pos={%d, %d}\n"
 		     "\t    size={%d, %d}\n"
 		     "\t    attached=%s\n"
@@ -1265,12 +1300,16 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 		     "\t    bits_per_color=%u\n"
 		     "\t    space=%s\n"
 		     "\t    sdr_white_nits=%lu\n"
-		     "\t    nit_range=[min=%f, max=%f, max_full_frame=%f]",
-		     i, target.monitorFriendlyDeviceName, rect.left, rect.top,
+		     "\t    nit_range=[min=%f, max=%f, max_full_frame=%f]\n"
+		     "\t    dpi=%u (%u%%)\n"
+		     "\t    id=%s\n"
+		     "\t    alt_id=%s",
+		     i, friendly_name, rect.left, rect.top,
 		     rect.right - rect.left, rect.bottom - rect.top,
 		     desc.AttachedToDesktop ? "true" : "false", refresh,
 		     bits_per_color, space, nits, min_luminance, max_luminance,
-		     max_full_frame_luminance);
+		     max_full_frame_luminance, dpiX, scaling, id, alt_id);
+		bfree(friendly_name);
 	}
 }
 
@@ -1301,9 +1340,9 @@ static inline void LogD3DAdapters()
 
 		os_wcs_to_utf8(desc.Description, 0, name, sizeof(name));
 		blog(LOG_INFO, "\tAdapter %u: %s", i, name);
-		blog(LOG_INFO, "\t  Dedicated VRAM: %u",
+		blog(LOG_INFO, "\t  Dedicated VRAM: %" PRIu64,
 		     desc.DedicatedVideoMemory);
-		blog(LOG_INFO, "\t  Shared VRAM:    %u",
+		blog(LOG_INFO, "\t  Shared VRAM:    %" PRIu64,
 		     desc.SharedSystemMemory);
 		blog(LOG_INFO, "\t  PCI ID:         %x:%x", desc.VendorId,
 		     desc.DeviceId);
@@ -2057,10 +2096,9 @@ bool device_framebuffer_srgb_enabled(gs_device_t *device)
 	return device->curFramebufferSrgb;
 }
 
-inline void gs_device::CopyTex(ID3D11Texture2D *dst, uint32_t dst_x,
-			       uint32_t dst_y, gs_texture_t *src,
-			       uint32_t src_x, uint32_t src_y, uint32_t src_w,
-			       uint32_t src_h)
+void gs_device::CopyTex(ID3D11Texture2D *dst, uint32_t dst_x, uint32_t dst_y,
+			gs_texture_t *src, uint32_t src_x, uint32_t src_y,
+			uint32_t src_w, uint32_t src_h)
 {
 	if (src->type != GS_TEXTURE_2D)
 		throw "Source texture must be a 2D texture";
@@ -3049,7 +3087,7 @@ extern "C" EXPORT bool device_p010_available(gs_device_t *device)
 extern "C" EXPORT bool device_is_monitor_hdr(gs_device_t *device, void *monitor)
 {
 	const HMONITOR hMonitor = static_cast<HMONITOR>(monitor);
-	return get_monitor_color_info(device, hMonitor).hdr;
+	return device->GetMonitorColorInfo(hMonitor).hdr;
 }
 
 extern "C" EXPORT void device_debug_marker_begin(gs_device_t *,

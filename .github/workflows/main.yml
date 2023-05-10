@@ -16,22 +16,11 @@ on:
 
 env:
   CACHE_REVISION: '006'
-  CEF_BUILD_VERSION_MAC: '5060'
-  CEF_HASH_MAC_X86_64: '88b950aa0bfc001061c35e7f1f3fefba856a6afb35e38b2b7b42ddd8dd239182'
-  CEF_HASH_MAC_ARM64: '98679b92eea6ea9959ac5aa54f46ca60681d8a86c768c35f496dbdd409bf0642'
   CEF_BUILD_VERSION_LINUX: '5060'
   CEF_BUILD_VERSION_WIN: '5060'
-  QT_VERSION_MAC: '6.4.1'
-  QT_HASH_MAC_X86_64: 'c5ed7bc9f6e802910ec539066bcf0a8d64100fafce568071f264c88c22c5859b'
-  QT_HASH_MAC_ARM64: '1ce472fd1e28f947456b72b1d7ab929d6e93cb774c2928e22eca9bb751b12ccf'
-  QT_HASH_MAC_UNIVERSAL: '873f7c9c9f7fcee740a79c075b32a505c932c816d928807fa16f3439c610fbfd'
-  QT_VERSION_WIN: '6.3.1'
-  DEPS_VERSION_MAC: '2022-11-21'
-  DEPS_HASH_MAC_X86_64: 'ed0a145e88496f8975da14a07939dbe5633e60510aada34509a4aef64a66e438'
-  DEPS_HASH_MAC_ARM64: 'f397dc524e5ee7f85684f0b9661c45957446e28d166fcd6dfacf895c9d4d2521'
-  DEPS_VERSION_WIN: '2023-01-06'
-  VLC_VERSION_MAC: '3.0.8'
-  VLC_HASH_MAC: 'e0149ef4a20a19b9ecd87309c2d27787ee3f47dfd47c6639644bc1f6fd95bdf6'
+  QT_VERSION_MAC: '6.4.3'
+  QT_VERSION_WIN: '6.4.3'
+  DEPS_VERSION_WIN: '2023-04-12'
   VLC_VERSION_WIN: '3.0.0-git'
 
 jobs:
@@ -95,14 +84,14 @@ jobs:
         run: CI/windows/02_build_obs.ps1 -BuildArch ${{ matrix.arch }}
 
       - name: 'Create build artifact'
-        if: ${{ success() && (github.event_name != 'pull_request' || env.SEEKING_TESTERS == '1') }}
+        if: ${{ success() && fromJSON(needs.config.outputs.create_artifacts) }}
         run: |
           CI/windows/03_package_obs.ps1 -BuildArch ${{ matrix.arch }} -Package
           $ArtifactName = Get-ChildItem -filter "obs-studio-*-windows-${{ matrix.arch }}.zip" -File
           Write-Output "FILE_NAME=${ArtifactName}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: 'Upload build artifact'
-        if: ${{ success() && (github.event_name != 'pull_request' || env.SEEKING_TESTERS == '1') }}
+        if: ${{ success() && fromJSON(needs.config.outputs.create_artifacts) }}
         uses: actions/upload-artifact@v3
         with:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
