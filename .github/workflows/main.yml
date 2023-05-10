@@ -30,7 +30,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        arch: [x64, x86]
+        arch: [x64]
     env:
       CMAKE_GENERATOR: 'Visual Studio 17 2022'
       CMAKE_SYSTEM_VERSION: '10.0.18363.657'
@@ -74,25 +74,26 @@ jobs:
           $CommitHash = git rev-parse --short=9 HEAD
           "commitHash=${CommitHash}" >> $env:GITHUB_OUTPUT
 
-      - name: 'Install dependencies'
-        env:
-          RESTORED_VLC: ${{ steps.vlc-cache.outputs.cache-hit }}
-          RESTORED_CEF: ${{ steps.cef-cache.outputs.cache-hit }}
-        run: CI/windows/01_install_dependencies.ps1 -BuildArch ${{ matrix.arch }}
+      # - name: 'Install dependencies'
+        # env:
+          # RESTORED_VLC: ${{ steps.vlc-cache.outputs.cache-hit }}
+          # RESTORED_CEF: ${{ steps.cef-cache.outputs.cache-hit }}
+        # run: CI/windows/01_install_dependencies.ps1 -BuildArch ${{ matrix.arch }}
 
-      - name: 'Build OBS'
-        run: CI/windows/02_build_obs.ps1 -BuildArch ${{ matrix.arch }}
+      # - name: 'Build OBS'
+        # run: CI/windows/02_build_obs.ps1 -BuildArch ${{ matrix.arch }}
 
       - name: 'Create build artifact'
         if: ${{ success()}}
         run: |
-          CI/windows/03_package_obs.ps1 -BuildArch ${{ matrix.arch }} -Package
+          # CI/windows/03_package_obs.ps1 -BuildArch ${{ matrix.arch }} -Package
           $ArtifactName = Get-ChildItem -filter "obs-studio-*-windows-${{ matrix.arch }}.zip" -File
           Write-Output "FILE_NAME=${ArtifactName}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: 'Upload build artifact'
         if: ${{ success()}}
         uses: actions/upload-artifact@v3
+        run: dir
         with:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
           path: '${{ env.FILE_NAME }}'

@@ -97,7 +97,7 @@ function Package-OBS {
         }
 
         Write-Step "Creating zip archive..."
-		Write-Step "Path ${FileName}-x86.zip"
+		
         $ProgressPreference = $(if ($Quiet.isPresent) { 'SilentlyContinue' } else { 'Continue' })
         Compress-Archive -Force @CompressVars
         $ProgressPreference = 'Continue'
