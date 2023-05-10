@@ -8,7 +8,8 @@ Param(
     [ValidateSet('x86', 'x64')]
     [String]$BuildArch = $(if (Test-Path variable:BuildArch) { "${BuildArch}" } else { ('x86', 'x64')[[System.Environment]::Is64BitOperatingSystem] }),
     [ValidateSet("Release", "RelWithDebInfo", "MinSizeRel", "Debug")]
-    [String]$BuildConfiguration = $(if (Test-Path variable:BuildConfiguration) { "${BuildConfiguration}" } else { "RelWithDebInfo" })
+    [String]$BuildConfiguration = $(if (Test-Path variable:BuildConfiguration) { "${BuildConfiguration}" } else { "RelWithDebInfo" }),
+	[String]$Temp = $(if (Test-Path variable:Temp) { "${Temp}" } else { "none" })
 )
 
 ##############################################################################
@@ -30,6 +31,13 @@ function Package-OBS {
     )
 
     Write-Status "Package plugin ${ProductName}"
+	Write-Step "FileName = ${FileName}"
+	Write-Step "${Temp}"
+	Write-Step (Test-Path variable:Tempo | Out-String)
+	Write-Step (Get-Variable -Scope Local | Out-String)
+	Write-Step (Get-Variable -Scope Global | Out-String)
+	Write-Step ((gci env:*).GetEnumerator() | Sort-Object Name | Out-String)
+	
     Ensure-Directory ${CheckoutDir}
 
     if ($CombinedArchs.isPresent) {
@@ -93,11 +101,14 @@ function Package-OBS {
         }
 
         Write-Step "Creating zip archive..."
-
+		Write-Step "Path ${FileName}-x86.zip"
         $ProgressPreference = $(if ($Quiet.isPresent) { 'SilentlyContinue' } else { 'Continue' })
         Compress-Archive -Force @CompressVars
         $ProgressPreference = 'Continue'
 
+
+		$TempArtifactName = Get-ChildItem -filter "obs-studio-*-windows-$BuildArch.zip" -File
+		Write-Step "Artifact name found: ${TempArtifactName}"
     }
 }
 
@@ -119,7 +130,7 @@ function Package-OBS-Standalone {
     $GitTag = git describe --tags --abbrev=0
     $ErrorActionPreference = "Stop"
 
-    if(Test-Path variable:BUILD_FOR_DISTRIBUTION) {
+    if(Test-Path env:BUILD_FOR_DISTRIBUTION) {
         $VersionString = "${GitTag}"
     } else {
         $VersionString = "${GitTag}-${GitHash}"
@@ -145,13 +156,12 @@ function Print-Usage {
     $Lines | Write-Host
 }
 
-
 if(!(Test-Path variable:_RunObsBuildScript)) {
     $_ScriptName = "$($MyInvocation.MyCommand.Name)"
     if($Help.isPresent) {
         Print-Usage
         exit 0
     }
-
+	
     Package-OBS-Standalone
 }
