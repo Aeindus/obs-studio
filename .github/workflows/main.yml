@@ -26,7 +26,7 @@ env:
 jobs:
   windows_build:
     name: '02 - Windows'
-    runs-on: [self-hosted, windows-2022]
+    runs-on: self-hosted
     if: always()
     strategy:
       matrix:
@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
-          path: '${{ env.FILE_NAME }}'
+          path: 'obs-studio/${{ env.FILE_NAME }}'
 
   windows_package:
     name: '03 - Windows Installer'
@@ -112,7 +112,7 @@ jobs:
         id: setup
         run: |
           $CommitHash = git rev-parse --short=9 HEAD
-          Write-Output "::set-output name=commitHash::${CommitHash}"
+          "commitHash=${CommitHash}" >> $env:GITHUB_OUTPUT
 
       - name: 'Add msbuild to PATH'
         uses: microsoft/setup-msbuild@v1.1
@@ -140,7 +140,7 @@ jobs:
           CI/windows/03_package_obs.ps1 -CombinedArchs -Package
 
           $ArtifactName = (Get-ChildItem -filter "obs-studio-*-windows-x86+x64.zip" -File).Name
-          Write-Output "::set-output name=filename::${ArtifactName}"
+          "filename=${ArtifactName}" >> $env:GITHUB_OUTPUT
 
       - name: 'Upload build artifact'
         uses: actions/upload-artifact@v3
