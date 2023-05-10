@@ -94,9 +94,9 @@ jobs:
         if: ${{ success()}}
         # uses: actions/upload-artifact@v3
         run: dir
-        with:
-          name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
-          path: '${{ env.FILE_NAME }}'
+        # with:
+          # name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
+          # path: '${{ env.FILE_NAME }}'
 
   windows_package:
     name: '03 - Windows Installer'
