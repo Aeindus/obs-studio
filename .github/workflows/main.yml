@@ -84,14 +84,14 @@ jobs:
         run: CI/windows/02_build_obs.ps1 -BuildArch ${{ matrix.arch }}
 
       - name: 'Create build artifact'
-        if: ${{ success() && fromJSON(needs.config.outputs.create_artifacts) }}
+        if: ${{ success()}}
         run: |
           CI/windows/03_package_obs.ps1 -BuildArch ${{ matrix.arch }} -Package
           $ArtifactName = Get-ChildItem -filter "obs-studio-*-windows-${{ matrix.arch }}.zip" -File
           Write-Output "FILE_NAME=${ArtifactName}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: 'Upload build artifact'
-        if: ${{ success() && fromJSON(needs.config.outputs.create_artifacts) }}
+        if: ${{ success()}}
         uses: actions/upload-artifact@v3
         with:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
