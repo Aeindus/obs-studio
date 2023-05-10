@@ -92,7 +92,7 @@ jobs:
 
       - name: 'Upload build artifact'
         if: ${{ success()}}
-        uses: actions/upload-artifact@v3
+        # uses: actions/upload-artifact@v3
         run: dir
         with:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
