@@ -38,8 +38,6 @@ target_sources(
           compat-helpers.c
           compat-helpers.h
           compat-format-ver.h
-          custom_patch.c
-          custom_patch.h
           ../../libobs/util/windows/obfuscate.c
           ../../libobs/util/windows/obfuscate.h
           ${CMAKE_BINARY_DIR}/config/compat-config.h)
