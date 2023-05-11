@@ -1132,6 +1132,6 @@ struct obs_source_info slideshow_info = {
 	.media_next = ss_next_slide,
 	.media_previous = ss_previous_slide,
 	.media_get_state = ss_get_state,
-	.video_get_color_space = ss_video_get_color_space,
 	.media_get_title = ss_get_title,
+	.video_get_color_space = ss_video_get_color_space,
 };
